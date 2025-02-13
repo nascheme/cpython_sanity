@@ -1,0 +1,82 @@
+##############################################################################
+# Temporary build image
+##############################################################################
+FROM debian:bookworm-slim AS build
+
+ENV WORK=/work
+WORKDIR $WORK
+
+# preserve cached files
+RUN rm -f /etc/apt/apt.conf.d/docker-clean
+
+# Disable interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Debian packages needed to compile things.
+ENV pkgs=" \
+ca-certificates \
+clang-19 \
+curl \
+git \
+libbz2-dev \
+libffi-dev \
+liblzma-dev \
+libncurses-dev \
+libreadline-dev \
+libsqlite3-dev \
+libssl-dev \
+make \
+pybind11-dev \
+uuid-dev \
+zlib1g-dev \
+"
+
+#RUN \
+#    --mount=type=cache,target=/var/cache/apt \
+#    apt update && apt-get install -y --no-install-recommends $pkgs
+RUN \
+    --mount=type=cache,target=/var/cache/apt \
+    apt update && apt-get install -y $pkgs
+
+ENV CC=clang-19
+ENV CXX=clang++-19
+
+ENV PYENV_ROOT="$WORK/.pyenv"
+ENV PYENV_BIN="$PYENV_ROOT/bin"
+ENV PYENV_SHIMS="$PYENV_ROOT/shims"
+ENV PATH="$PATH:$WORK/.pyenv/bin:$WORK/.pyenv/shims"
+
+# Install pyenv
+RUN git clone --single-branch --depth=1 --no-tags \
+    https://github.com/pyenv/pyenv.git "$WORK/.pyenv"
+
+# Build cpython, with sanitizer options.
+# free-threaded Python is much more likely to trigger races
+RUN sh -c 'CONFIGURE_OPTS="--with-thread-sanitizer" pyenv install 3.13t'
+RUN pyenv global 3.13t
+
+# Install cython
+RUN --mount=type=cache,target=/root/.cache \
+    pip install -i https://pypi.anaconda.org/scientific-python-nightly-wheels/simple cython
+
+# clean unwanted files from image
+ADD clean-image.sh /
+RUN sh /clean-image.sh && rm /clean-image.sh
+
+##############################################################################
+# Final image
+##############################################################################
+FROM debian:bookworm-slim
+
+ENV WORK=/work
+WORKDIR /work
+
+COPY --from=build / /
+
+ENV CC=clang-19
+ENV CXX=clang++-19
+
+ENV PYENV_ROOT="$WORK/.pyenv"
+ENV PYENV_BIN="$PYENV_ROOT/bin"
+ENV PYENV_SHIMS="$PYENV_ROOT/shims"
+ENV PATH="$PATH:$WORK/.pyenv/bin:$WORK/.pyenv/shims"
