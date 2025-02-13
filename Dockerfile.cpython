@@ -50,10 +50,18 @@ ENV PATH="$PATH:$WORK/.pyenv/bin:$WORK/.pyenv/shims"
 RUN git clone --single-branch --depth=1 --no-tags \
     https://github.com/pyenv/pyenv.git "$WORK/.pyenv"
 
+# Enable caching by making folder
+RUN mkdir "$PYENV_ROOT/cache"
+
 # Build cpython, with sanitizer options.
 # free-threaded Python is much more likely to trigger races
-RUN sh -c 'CONFIGURE_OPTS="--with-thread-sanitizer" pyenv install 3.13t'
+RUN \
+    --mount=type=cache,target=$PYENV_ROOT/cache \
+    sh -c 'CONFIGURE_OPTS="--with-thread-sanitizer" pyenv install 3.13t'
 RUN pyenv global 3.13t
+
+# This warning is just noise, disable.
+ENV PIP_ROOT_USER_ACTION=ignore
 
 # Install cython
 RUN --mount=type=cache,target=/root/.cache \
