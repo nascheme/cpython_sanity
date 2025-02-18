@@ -44,6 +44,7 @@ ENV CXX=clang++-19
 ENV PYENV_ROOT="$WORK/.pyenv"
 ENV PYENV_BIN="$PYENV_ROOT/bin"
 ENV PYENV_SHIMS="$PYENV_ROOT/shims"
+ENV PYENV_CACHE="$PYENV_ROOT/cache"
 ENV PATH="$PATH:$WORK/.pyenv/bin:$WORK/.pyenv/shims"
 
 # Install pyenv
@@ -51,12 +52,12 @@ RUN git clone --single-branch --depth=1 --no-tags \
     https://github.com/pyenv/pyenv.git "$WORK/.pyenv"
 
 # Enable caching by making folder
-RUN mkdir "$PYENV_ROOT/cache"
+RUN mkdir "$PYENV_CACHE"
 
 # Build cpython, with sanitizer options.
 # free-threaded Python is much more likely to trigger races
 RUN \
-    --mount=type=cache,target=$PYENV_ROOT/cache \
+    --mount=type=cache,target=/work/.pyenv/cache \
     sh -c 'CONFIGURE_OPTS="--with-thread-sanitizer" pyenv install 3.13t'
 RUN pyenv global 3.13t
 
