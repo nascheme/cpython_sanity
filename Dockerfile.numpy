@@ -12,14 +12,17 @@ WORKDIR $WORK/numpy
 # Checkout submodules
 RUN git submodule update --init
 
-# Install Python requirements
-RUN --mount=type=cache,target=/root/.cache \
-    pip install -r requirements/build_requirements.txt && \
-    pip install -r requirements/ci_requirements.txt && \
-    pip install -r requirements/test_requirements.txt
+# This warning is just noise, disable.
+ENV PIP_ROOT_USER_ACTION=ignore
 
-# Build numpy
-RUN python -m spin build -j2 -- -Db_sanitize=thread
+# Install Python requirements
+#RUN --mount=type=cache,target=/root/.cache \
+#    pip install -r requirements/build_requirements.txt && \
+#    pip install -r requirements/ci_requirements.txt && \
+#    pip install -r requirements/test_requirements.txt
+
+# Build/install numpy
+RUN python -m pip install . --no-build-isolation -C'setup-args=-Db_sanitize=thread'
 
 # clean unwanted files from image
 ADD clean-image.sh /
