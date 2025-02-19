@@ -39,8 +39,8 @@ ENV WORK=/work
 
 COPY --from=build / /
 
-#ENV CC=clang-19
-#ENV CXX=clang++-19
+ENV CC=clang-20
+ENV CXX=clang++-20
 
 ENV PYENV_ROOT="$WORK/.pyenv"
 ENV PYENV_BIN="$PYENV_ROOT/bin"

@@ -44,11 +44,17 @@ RUN \
     --mount=type=cache,target=/root/.cache \
     python -m pip install -r requirements/dev.txt
 
+# We enable TSAN by setting CFLAGS, rather than passing
+# "-Csetup-args=-Db_sanitize=thread" to pip.  This is because
+# C/C++ code will be compiled by Clang but Fortran code will
+# be compiled with gfortran.  You can't mix the TSAN runtimes
+# from GCC and LLVM.
+ENV CFLAGS=-fsanitize=thread
+
 # Build/install scipy
 RUN \
     --mount=type=cache,target=/root/.cache \
     python -m pip install . --no-build-isolation \
-    -Csetup-args=-Db_sanitize=thread \
     -Csetup-args=-Db_lundef=false \
     -Csetup-args=-Dbuildtype=debugoptimized
 
@@ -65,8 +71,8 @@ ENV WORK=/work
 
 COPY --from=build / /
 
-#ENV CC=clang-19
-#ENV CXX=clang++-19
+ENV CC=clang-20
+ENV CXX=clang++-20
 ENV FC=gfortran
 
 ENV PYENV_ROOT="$WORK/.pyenv"
