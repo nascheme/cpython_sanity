@@ -1,7 +1,7 @@
 ##############################################################################
 # Temporary build image
 ##############################################################################
-FROM debian:bookworm-slim AS build
+FROM ubuntu:25.04 AS build
 
 ENV WORK=/work
 WORKDIR $WORK
@@ -74,7 +74,7 @@ RUN sh /clean-image.sh && rm /clean-image.sh
 ##############################################################################
 # Final image
 ##############################################################################
-FROM debian:bookworm-slim
+FROM ubuntu:25.04
 
 ENV WORK=/work
 WORKDIR /work

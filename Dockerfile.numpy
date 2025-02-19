@@ -33,7 +33,7 @@ RUN sh /clean-image.sh && rm /clean-image.sh
 ##############################################################################
 # Final image
 ##############################################################################
-FROM debian:bookworm-slim
+FROM ubuntu:25.04
 
 ENV WORK=/work
 
