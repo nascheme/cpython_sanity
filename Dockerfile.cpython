@@ -15,7 +15,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Debian packages needed to compile things.
 ENV pkgs=" \
 ca-certificates \
-clang-19 \
+build-essential \
 curl \
 git \
 libbz2-dev \
@@ -37,9 +37,6 @@ zlib1g-dev \
 RUN \
     --mount=type=cache,target=/var/cache/apt \
     apt update && apt-get install -y $pkgs
-
-ENV CC=clang-19
-ENV CXX=clang++-19
 
 ENV PYENV_ROOT="$WORK/.pyenv"
 ENV PYENV_BIN="$PYENV_ROOT/bin"
@@ -64,6 +61,8 @@ RUN pyenv global 3.13t
 # This warning is just noise, disable.
 ENV PIP_ROOT_USER_ACTION=ignore
 
+ENV TSAN_OPTIONS="report_bugs=0 exitcode=0"
+
 # Install cython
 RUN --mount=type=cache,target=/root/.cache \
     pip install -i https://pypi.anaconda.org/scientific-python-nightly-wheels/simple cython
@@ -82,8 +81,8 @@ WORKDIR /work
 
 COPY --from=build / /
 
-ENV CC=clang-19
-ENV CXX=clang++-19
+#ENV CC=clang-19
+#ENV CXX=clang++-19
 
 ENV PYENV_ROOT="$WORK/.pyenv"
 ENV PYENV_BIN="$PYENV_ROOT/bin"

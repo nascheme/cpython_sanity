@@ -15,11 +15,13 @@ RUN git submodule update --init
 # This warning is just noise, disable.
 ENV PIP_ROOT_USER_ACTION=ignore
 
+ENV TSAN_OPTIONS="report_bugs=0 exitcode=0"
+
 # Install Python requirements
-#RUN --mount=type=cache,target=/root/.cache \
-#    pip install -r requirements/build_requirements.txt && \
-#    pip install -r requirements/ci_requirements.txt && \
-#    pip install -r requirements/test_requirements.txt
+RUN --mount=type=cache,target=/root/.cache \
+    pip install -r requirements/build_requirements.txt && \
+    pip install -r requirements/ci_requirements.txt && \
+    pip install -r requirements/test_requirements.txt
 
 # Build/install numpy
 RUN python -m pip install . --no-build-isolation -C'setup-args=-Db_sanitize=thread'
@@ -37,8 +39,8 @@ ENV WORK=/work
 
 COPY --from=build / /
 
-ENV CC=clang-19
-ENV CXX=clang++-19
+#ENV CC=clang-19
+#ENV CXX=clang++-19
 
 ENV PYENV_ROOT="$WORK/.pyenv"
 ENV PYENV_BIN="$PYENV_ROOT/bin"

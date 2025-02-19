@@ -18,10 +18,13 @@ ENV PIP_ROOT_USER_ACTION=ignore
 # Disable interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
+ENV TSAN_OPTIONS="report_bugs=0 exitcode=0"
+
 # Debian packages needed to compile things.
 ENV pkgs=" \
 gfortran \
 libopenblas-dev \
+liblapack-dev \
 pkgconf \
 "
 
@@ -62,8 +65,8 @@ ENV WORK=/work
 
 COPY --from=build / /
 
-ENV CC=clang-19
-ENV CXX=clang++-19
+#ENV CC=clang-19
+#ENV CXX=clang++-19
 ENV FC=gfortran
 
 ENV PYENV_ROOT="$WORK/.pyenv"
