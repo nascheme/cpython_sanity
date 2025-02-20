@@ -4,6 +4,10 @@ name: Build and push Docker image to ghcr
 #  push:
 #    branches: [ "main" ]
 
+on:
+  workflow_dispatch:
+
+
 jobs:
 
   build:
