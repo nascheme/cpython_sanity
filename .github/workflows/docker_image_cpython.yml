@@ -28,8 +28,10 @@ jobs:
     - name: Build and push to dockerhub
       uses: docker/build-push-action@v5
       with:
-       context:
+       context: .
        push: true
+       cache-from: type=gha
+       cache-to: type=gha,mode=max
        file: ./Dockerfile.cpython
        tags: |
         ghcr.io/nascheme/cpython-tsan:latest
