@@ -30,7 +30,7 @@ jobs:
        context: .
        push: true
        build-args: |
-        base_image="ghcr.io/nascheme/cpython-tsan:latest"
+        base_image=ghcr.io/nascheme/cpython-tsan:latest
        cache-from: type=gha
        cache-to: type=gha,mode=max
        file: ./Dockerfile.numpy
