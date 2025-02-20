@@ -1,8 +1,4 @@
-name: Build and push cpython image to ghcr
-
-#on:
-#  push:
-#    branches: [ "main" ]
+name: Build and push numpy image to ghcr
 
 on:
   workflow_dispatch:
@@ -30,8 +26,10 @@ jobs:
       with:
        context: .
        push: true
+       build-args:
+        - base_image="ghcr.io/nascheme/cpython-tsan:latest"
        cache-from: type=gha
        cache-to: type=gha,mode=max
-       file: ./Dockerfile.cpython
+       file: ./Dockerfile.numpy
        tags: |
-        ghcr.io/nascheme/cpython-tsan:latest
+        ghcr.io/nascheme/numpy-tsan:latest

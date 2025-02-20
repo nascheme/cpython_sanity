@@ -1,7 +1,9 @@
+ARG base_image=cpython-tsan
+
 ##############################################################################
 # Temporary build image
 ##############################################################################
-FROM cpython-tsan AS build
+FROM $base_image AS build
 
 # Checkout numpy source code
 RUN git clone --single-branch --depth=1 --no-tags --shallow-submodules \
