@@ -32,5 +32,4 @@ jobs:
        push: true
        file: ./Dockerfile.cpython
        tags: |
-        ghcr.io/nascheme/cpython-tsan:${{ github.ref }}
         ghcr.io/nascheme/cpython-tsan:latest
