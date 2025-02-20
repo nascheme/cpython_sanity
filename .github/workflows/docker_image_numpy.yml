@@ -21,7 +21,10 @@ jobs:
        username: ${{ github.repository_owner }}
        password: ${{ secrets.CI_TOKEN }}
 
-    - name: Build and push to dockerhub
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build and push image
       uses: docker/build-push-action@v5
       with:
        context: .
