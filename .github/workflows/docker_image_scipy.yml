@@ -1,4 +1,4 @@
-name: Build numpy-tsan image
+name: Build scipy-tsan image
 
 on:
   workflow_dispatch:
@@ -38,7 +38,7 @@ jobs:
        context: .
        push: true
        build-args: |
-        base_image=ghcr.io/nascheme/cpython-tsan:${{ inputs.python_version }}
-       file: ./Dockerfile.numpy
+        base_image=ghcr.io/nascheme/numpy-tsan:${{ inputs.python_version }}
+       file: ./Dockerfile.scipy
        tags: |
-        ghcr.io/nascheme/numpy-tsan:${{ inputs.python_version }}
+        ghcr.io/nascheme/scipy-tsan:${{ inputs.python_version }}
