@@ -1,7 +1,15 @@
-name: Build and push numpy image to ghcr
+name: Build numpy-tsan image
 
 on:
   workflow_dispatch:
+    inputs:
+      python_version:
+        decription: Version of Python to build
+        default: 3.13t
+        type: choice
+        options:
+        - 3.13t
+        - 3.14t
 
 
 jobs:
@@ -30,9 +38,9 @@ jobs:
        context: .
        push: true
        build-args: |
-        base_image=ghcr.io/nascheme/cpython-tsan:latest
+        base_image=ghcr.io/nascheme/cpython-tsan:${{ inputs.python_version }}
        cache-from: type=gha
        cache-to: type=gha,mode=max
        file: ./Dockerfile.numpy
        tags: |
-        ghcr.io/nascheme/numpy-tsan:latest
+        ghcr.io/nascheme/numpy-tsan:${{ inputs.python_version }}
