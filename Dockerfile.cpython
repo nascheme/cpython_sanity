@@ -6,6 +6,8 @@ FROM ubuntu:25.04 AS build
 ENV WORK=/work
 WORKDIR $WORK
 
+ARG python_version=3.13t
+
 # preserve cached files
 RUN rm -f /etc/apt/apt.conf.d/docker-clean
 
@@ -58,8 +60,8 @@ RUN mkdir "$PYENV_CACHE"
 # free-threaded Python is much more likely to trigger races
 RUN \
     --mount=type=cache,target=/work/.pyenv/cache \
-    sh -c 'CONFIGURE_OPTS="--with-thread-sanitizer" pyenv install 3.13t'
-RUN pyenv global 3.13t
+    sh -c "CONFIGURE_OPTS='--with-thread-sanitizer' pyenv install ${python_version}"
+RUN pyenv global $python_version
 
 # This warning is just noise, disable.
 ENV PIP_ROOT_USER_ACTION=ignore
