@@ -12,8 +12,8 @@ on:
         - '3.14t'
         - '3.14t-dev'
   schedule:
-    # 03:42 on Sundays and Wednesdays
-    - cron: "42 3 * * SUN,WED"
+    # 03:02 on Sundays and Wednesdays
+    - cron: "02 3 * * SUN,WED"
 
 jobs:
 
