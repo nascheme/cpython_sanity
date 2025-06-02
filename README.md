@@ -54,6 +54,13 @@ the following config change may be required:
 Since this change reduces security, you likely want to revert to the default
 number of bits after running tests.
 
+If ASLR is not disabled, you might see an error similar to the following:
+
+    root@b60155750c89:/work# python
+    ThreadSanitizer: CHECK failed: tsan_platform_linux.cpp:290 "((personality(old_personality | ADDR_NO_RANDOMIZE))) != ((-1))" (0xffffffffffffffff, 0xffffffffffffffff) (tid=13)
+    Segmentation fault (core dumped)
+
+
 If you need to install packages using "apt", the list of packages needs
 to be updated first, e.g.
 
