@@ -1,0 +1,19 @@
+name: Delete Old Package Versions
+
+on:
+  # Schedule to run periodically
+  schedule:
+    - cron: '0 6 * * SUN'
+  # Allow manual triggering from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  clean:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: dataaxiom/ghcr-cleanup-action@v1
+        with:
+          packages: cpython-tsan,numpy-tsan,scipy-tsan
+          expand-packages: true
+          dry-run: false
+          token: ${{ secrets.CI_TOKEN }}
