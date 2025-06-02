@@ -65,6 +65,6 @@ Running scipy tests
 
 Example of running a single test with pytest:
 
-    cd /work/.pyenv/versions/3.13.2t/lib/python3.13t/site-packages/scipy
+    cd /work/.pyenv/versions/*/lib/*/site-packages/scipy
     PYTHON_GIL=0 TSAN_OPTIONS=allocator_may_return_null=1:halt_on_error=1 \
         pytest -v -s optimize/tests/test_minpack.py::TestFSolve::test_concurrent_no_gradient
