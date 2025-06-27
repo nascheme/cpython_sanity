@@ -1,4 +1,4 @@
-name: Build cpython-tsan image
+name: Build cpython-asan image
 
 on:
   workflow_dispatch:
@@ -12,8 +12,8 @@ on:
         - '3.14t'
         - '3.15t-dev'
   schedule:
-    # 03:02 on Sundays and Wednesdays
-    - cron: "02 3 * * SUN,WED"
+    # 04:02 on Sundays and Wednesdays
+    - cron: "02 4 * * SUN,WED"
 
 jobs:
 
@@ -43,6 +43,6 @@ jobs:
        file: ./Dockerfile.cpython
        build-args: |
         python_version=${{ inputs.python_version }}
-        config_opts="--with-thread-sanitizer"
+        config_opts="--with-address-sanitizer"
        tags: |
-        ghcr.io/nascheme/cpython-tsan:${{ inputs.python_version }}
+        ghcr.io/nascheme/cpython-asan:${{ inputs.python_version }}

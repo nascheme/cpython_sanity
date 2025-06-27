@@ -5,6 +5,8 @@ ARG base_image=cpython-tsan
 ##############################################################################
 FROM $base_image AS build
 
+ARG setup_args="-Db_sanitize=thread"
+
 # Checkout numpy source code
 RUN git clone --single-branch --depth=1 --no-tags --shallow-submodules \
     https://github.com/numpy/numpy $WORK/numpy
@@ -19,6 +21,8 @@ ENV PIP_ROOT_USER_ACTION=ignore
 
 ENV TSAN_OPTIONS="report_bugs=0 exitcode=0"
 
+ENV ASAN_OPTIONS="detect_leaks=0 exitcode=0"
+
 # Install Python requirements
 RUN --mount=type=cache,target=/root/.cache \
     pip install -r requirements/build_requirements.txt && \
@@ -26,7 +30,7 @@ RUN --mount=type=cache,target=/root/.cache \
     pip install -r requirements/test_requirements.txt
 
 # Build/install numpy
-RUN python -m pip install . --no-build-isolation -C'setup-args=-Db_sanitize=thread'
+RUN python -m pip install . --no-build-isolation -C"setup-args=${setup_args}"
 
 # clean unwanted files from image
 ADD clean-image.sh /

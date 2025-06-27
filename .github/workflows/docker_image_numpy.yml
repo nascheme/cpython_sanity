@@ -5,12 +5,12 @@ on:
     inputs:
       python_version:
         description: Version of Python to build
-        default: '3.13t'
+        default: '3.15t-dev'
         type: choice
         options:
         - '3.13t'
         - '3.14t'
-        - '3.14t-dev'
+        - '3.15t-dev'
   schedule:
     # 03:22 on Sundays and Wednesdays
     - cron: "22 3 * * SUN,WED"
@@ -41,7 +41,7 @@ jobs:
        context: .
        push: true
        build-args: |
-        base_image=ghcr.io/nascheme/cpython-tsan:${{ inputs.python_version || '3.14t-dev' }}
+        base_image=ghcr.io/nascheme/cpython-tsan:${{ inputs.python_version }}
        file: ./Dockerfile.numpy
        tags: |
-        ghcr.io/nascheme/numpy-tsan:${{ inputs.python_version || '3.14t-dev' }}
+        ghcr.io/nascheme/numpy-tsan:${{ inputs.python_version }}

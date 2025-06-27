@@ -3,6 +3,10 @@ Build container images for CPython, numpy, etc with sanitizer options enabled.
 Available container images
 --------------------------
 
+Builds with
+[ThreadSanitizer](https://github.com/google/sanitizers/wiki/ThreadSanitizerCppManual)
+enabled. This is useful to detect data races in C and C++ code.
+
 Free-threaded Python builds with TSAN enabled:
 
     ghcr.io/nascheme/cpython-tsan:3.13t
@@ -24,6 +28,19 @@ Above builds with "scipy" compiled with TSAN as well:
 
 The `3.14t-dev` images are rebuild twice a week by a cron job. The `3.13t` and
 `3.14t` images are rebuilt manually when Python releases happen.
+
+Builds with
+[AddressSanitizer](https://github.com/google/sanitizers/wiki/addresssanitizer)
+enabled.  This is useful to find memory leaks in C and C++ code.
+
+Free-threaded Python builds with ASAN enabled:
+
+    ghcr.io/nascheme/cpython-asan:3.14t
+
+Above build with "numpy" compiled with ASAN as well:
+
+    ghcr.io/nascheme/numpy-asan:3.14t
+
 
 Hints
 -----

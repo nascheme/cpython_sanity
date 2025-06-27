@@ -7,6 +7,7 @@ ENV WORK=/work
 WORKDIR $WORK
 
 ARG python_version=3.13t
+ARG config_opts="--with-thread-sanitizer"
 
 # preserve cached files
 RUN rm -f /etc/apt/apt.conf.d/docker-clean
@@ -60,13 +61,15 @@ RUN mkdir "$PYENV_CACHE"
 # free-threaded Python is much more likely to trigger races
 RUN \
     --mount=type=cache,target=/work/.pyenv/cache \
-    sh -c "CONFIGURE_OPTS='--with-thread-sanitizer' pyenv install ${python_version}"
+    sh -c "CONFIGURE_OPTS=\"${config_opts}\" pyenv install ${python_version}"
 RUN pyenv global $python_version
 
 # This warning is just noise, disable.
 ENV PIP_ROOT_USER_ACTION=ignore
 
 ENV TSAN_OPTIONS="report_bugs=0 exitcode=0"
+
+ENV ASAN_OPTIONS="detect_leaks=0 exitcode=0"
 
 # Install cython
 RUN --mount=type=cache,target=/root/.cache \
