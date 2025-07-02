@@ -84,11 +84,30 @@ to be updated first, e.g.
     apt-get update && apt-get install <pkg name>
 
 
+Running cpython tests
+---------------------
+
+Example of running unit tests under ASAN:
+
+    export ASAN_OPTIONS=allocator_may_return_null=1:halt_on_error=1
+    python -m test 2>&1 | tee /work/out.txt
+
+
+Running numpy tests
+-------------------
+
+Example of running unit tests under ASAN:
+
+    export ASAN_OPTIONS=allocator_may_return_null=1:halt_on_error=1
+    cd /work/.pyenv/versions/*/lib/*/site-packages/numpy
+    pytest 2>&1 | tee /work/out.txt
+
+
 Running scipy tests
 -------------------
 
 Example of running a single test with pytest:
 
+    export TSAN_OPTIONS=allocator_may_return_null=1:halt_on_error=1
     cd /work/.pyenv/versions/*/lib/*/site-packages/scipy
-    PYTHON_GIL=0 TSAN_OPTIONS=allocator_may_return_null=1:halt_on_error=1 \
-        pytest -v -s optimize/tests/test_minpack.py::TestFSolve::test_concurrent_no_gradient
+    PYTHON_GIL=0 pytest -v -s optimize/tests/test_minpack.py::TestFSolve::test_concurrent_no_gradient
