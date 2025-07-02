@@ -41,7 +41,7 @@ jobs:
        context: .
        push: true
        build-args: |
-        base_image=ghcr.io/nascheme/cpython-tsan:${{ inputs.python_version }}
+        base_image=ghcr.io/nascheme/cpython-tsan:${{ inputs.python_version || '3.15t-dev' }}
        file: ./Dockerfile.numpy
        tags: |
-        ghcr.io/nascheme/numpy-tsan:${{ inputs.python_version }}
+        ghcr.io/nascheme/numpy-tsan:${{ inputs.python_version || '3.15t-dev' }}
