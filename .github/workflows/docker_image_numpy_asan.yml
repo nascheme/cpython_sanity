@@ -42,7 +42,7 @@ jobs:
        push: true
        build-args: |
         base_image=ghcr.io/nascheme/cpython-asan:${{ inputs.python_version || '3.15t-dev' }}
-        setup_args="-Db_sanitize=address"
+        setup_args=-Db_sanitize=address
        file: ./Dockerfile.numpy
        tags: |
         ghcr.io/nascheme/numpy-asan:${{ inputs.python_version || '3.15t-dev' }}
