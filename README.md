@@ -63,7 +63,7 @@ Python is installed under `/work/.pyenv/versions`.  The `python` command
 will already be in the path.
 
 Depending on the version of Linux running on the container host, you may need
-to adjust some settings.  To avoid ASLR interferring with the TSAN checking,
+to adjust some settings.  To avoid ASLR interfering with the TSAN checking,
 the following config change may be required:
 
     sudo sysctl vm.mmap_rnd_bits=28
@@ -84,13 +84,40 @@ to be updated first, e.g.
     apt-get update && apt-get install <pkg name>
 
 
+Suppression lists
+-----------------
+
+When running with TSAN, you will likely want to provide a list of suppressions.
+This silences warnings for functions known to be racy (typically not
+triggerable in practice) or for when TSAN generates a spurious warning.  The
+list can be enabled with an environment variable like the following:
+
+    TSAN_OPTIONS="suppressions=<file>"
+
+For CPython, the list of suppressions for the free-threaded build is stored in
+the source folder as `Tools/tsan/suppressions_free_threading.txt`.  For numpy,
+the file is under is `tools/ci/tsan_suppressions.txt`.  For convenience, these
+files are copied to the `/work/tsan_suppressions` folder of the image.
+
+There is also an example script, `get_tsan_suppressions.py`, that will download
+the suppression list files and produce a combined list to stdout.  Note that
+this script is simplistic and has hard-coded URLs for the suppression files.
+The version of the suppressions should match the version of the code being run.
+
+
 Running cpython tests
 ---------------------
 
-Example of running unit tests under ASAN:
+Example of running Python unit tests under ASAN:
 
     export ASAN_OPTIONS=allocator_may_return_null=1:halt_on_error=1
     python -m test 2>&1 | tee /work/out.txt
+
+Example of running Python unit tests under TSAN:
+
+    cat tsan_suppressions/*.txt > ts.txt
+    export TSAN_OPTIONS="suppressions=$(pwd)/ts.txt"
+    python -m test --tsan 2>&1 | tee /work/out_tsan.txt
 
 
 Running numpy tests
@@ -100,7 +127,8 @@ Example of running unit tests under ASAN:
 
     export ASAN_OPTIONS=allocator_may_return_null=1:halt_on_error=1
     cd /work/.pyenv/versions/*/lib/*/site-packages/numpy
-    pytest 2>&1 | tee /work/out.txt
+    pytest 2>&1 | tee /work/out_asan.txt
+
 
 
 Running scipy tests

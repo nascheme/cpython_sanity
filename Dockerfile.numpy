@@ -32,6 +32,9 @@ RUN --mount=type=cache,target=/root/.cache \
 # Build/install numpy
 RUN python -m pip install . --no-build-isolation -C"setup-args=${setup_args}"
 
+# Save a copy of the TSAN suppression list
+RUN cp tools/ci/tsan_suppressions.txt ../tsan_suppressions/numpy.txt
+
 # clean unwanted files from image
 ADD clean-image.sh /
 RUN sh /clean-image.sh && rm /clean-image.sh

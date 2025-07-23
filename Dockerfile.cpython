@@ -61,8 +61,12 @@ RUN mkdir "$PYENV_CACHE"
 # free-threaded Python is much more likely to trigger races
 RUN \
     --mount=type=cache,target=/work/.pyenv/cache \
-    sh -c "CONFIGURE_OPTS=\"${config_opts}\" pyenv install ${python_version}"
+    sh -c "CONFIGURE_OPTS=\"${config_opts}\" pyenv install --keep ${python_version}"
 RUN pyenv global $python_version
+
+# Save a copy of the TSAN suppression list
+RUN mkdir $WORK/tsan_suppressions
+RUN cp $WORK/.pyenv/sources/*/Python-*/Tools/tsan/suppressions_free_threading.txt $WORK/tsan_suppressions/cpython.txt
 
 # This warning is just noise, disable.
 ENV PIP_ROOT_USER_ACTION=ignore
@@ -76,6 +80,7 @@ RUN --mount=type=cache,target=/root/.cache \
     pip install -i https://pypi.anaconda.org/scientific-python-nightly-wheels/simple cython
 
 # clean unwanted files from image
+RUN rm -rf $WORK/.pyenv/sources
 ADD clean-image.sh /
 RUN sh /clean-image.sh && rm /clean-image.sh
 
@@ -88,6 +93,9 @@ ENV WORK=/work
 WORKDIR /work
 
 COPY --from=build / /
+
+# Example script to generate a TSAN suppression list file
+ADD --chmod=755 get_tsan_suppressions.py ./
 
 ENV CC=clang-20
 ENV CXX=clang++-20
