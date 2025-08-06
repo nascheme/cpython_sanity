@@ -28,6 +28,7 @@ libncurses-dev \
 libreadline-dev \
 libsqlite3-dev \
 libssl-dev \
+libzstd-dev \
 make \
 pybind11-dev \
 uuid-dev \
