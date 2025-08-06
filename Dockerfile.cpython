@@ -62,7 +62,7 @@ RUN mkdir "$PYENV_CACHE"
 # free-threaded Python is much more likely to trigger races
 RUN \
     --mount=type=cache,target=/work/.pyenv/cache \
-    sh -c "CONFIGURE_OPTS=\"${config_opts}\" pyenv install --keep ${python_version}"
+    sh -c "CONFIGURE_OPTS=\"${config_opts}\" pyenv install --verbose --keep ${python_version}"
 RUN pyenv global $python_version
 
 # Save a copy of the TSAN suppression list
