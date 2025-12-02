@@ -78,7 +78,7 @@ ENV ASAN_OPTIONS="detect_leaks=0 exitcode=0"
 
 # Install cython
 RUN --mount=type=cache,target=/root/.cache \
-    pip install -i https://pypi.anaconda.org/scientific-python-nightly-wheels/simple cython
+    pip install cython
 
 # clean unwanted files from image
 RUN rm -rf $WORK/.pyenv/sources
