@@ -1,4 +1,5 @@
 name: Build cpython-asan image
+run-name: Build cpython-asan -- ${{ inputs.python_version }} by @${{ github.actor }}
 
 on:
   workflow_dispatch:

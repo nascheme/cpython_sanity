@@ -1,4 +1,5 @@
 name: Build cpython-tsan image
+run-name: Build cpython-tsan -- ${{ inputs.python_version }} by @${{ github.actor }}
 
 on:
   workflow_dispatch:

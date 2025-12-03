@@ -1,4 +1,5 @@
 name: Build numpy-asan image
+run-name: Build numpy-asan -- ${{ inputs.python_version }} by @${{ github.actor }}
 
 on:
   workflow_dispatch:

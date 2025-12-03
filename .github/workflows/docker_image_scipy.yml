@@ -1,4 +1,5 @@
 name: Build scipy-tsan image
+run-name: Build scipy-tsan -- ${{ inputs.python_version }} by @${{ github.actor }}
 
 on:
   workflow_dispatch:
