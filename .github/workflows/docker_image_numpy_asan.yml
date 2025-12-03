@@ -15,6 +15,9 @@ on:
     # 03:22 on Sundays and Wednesdays
     - cron: "22 3 * * SUN,WED"
 
+env:
+  python_version: ${{ github.event.inputs.python_version || '3.15t-dev' }}
+
 jobs:
 
   build:
@@ -35,14 +38,14 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
-    - name: Build and push image
+    - name: Build and push image -- ${{ env.python_version }}
       uses: docker/build-push-action@v5
       with:
        context: .
        push: true
        build-args: |
-        base_image=ghcr.io/nascheme/cpython-asan:${{ inputs.python_version || '3.15t-dev' }}
+        base_image=ghcr.io/nascheme/cpython-asan:${{ env.python_version }}
         setup_args=-Db_sanitize=address
        file: ./Dockerfile.numpy
        tags: |
-        ghcr.io/nascheme/numpy-asan:${{ inputs.python_version || '3.15t-dev' }}
+        ghcr.io/nascheme/numpy-asan:${{ env.python_version }}
