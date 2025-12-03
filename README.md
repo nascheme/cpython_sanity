@@ -64,7 +64,7 @@ will already be in the path.
 
 Depending on the version of Linux running on the container host, you may need
 to adjust some settings.  To avoid ASLR interfering with the TSAN checking,
-the following config change may be required:
+the following config change on the docker host system may be required:
 
     sudo sysctl vm.mmap_rnd_bits=28
 
