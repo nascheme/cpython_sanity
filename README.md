@@ -26,7 +26,7 @@ Above builds with "scipy" compiled with TSAN as well:
     ghcr.io/nascheme/scipy-tsan:3.15t-dev
 
 
-The `3.15t-dev` images are rebuild twice a week by a cron job. The `3.13t` and
+The `3.15t-dev` images are re-built twice a week by a cron job. The `3.13t` and
 `3.14t` images are rebuilt manually when Python releases happen.
 
 Builds with
