@@ -13,13 +13,18 @@ Free-threaded Python builds with TSAN enabled:
     ghcr.io/nascheme/cpython-tsan:3.14t
     ghcr.io/nascheme/cpython-tsan:3.15t-dev
 
-Above builds with numpy compiled with TSAN as well:
+GIL-enabled Python builds with TSAN enabled:
+
+    ghcr.io/nascheme/cpython-tsan:3.13
+    ghcr.io/nascheme/cpython-tsan:3.14
+
+Above free-threaded builds with numpy compiled with TSAN as well:
 
     ghcr.io/nascheme/numpy-tsan:3.13t
     ghcr.io/nascheme/numpy-tsan:3.14t
     ghcr.io/nascheme/numpy-tsan:3.15t-dev
 
-Above builds with scipy compiled with TSAN as well:
+Above free-threaded builds with scipy compiled with TSAN as well:
 
     ghcr.io/nascheme/scipy-tsan:3.13t
     ghcr.io/nascheme/scipy-tsan:3.14t
@@ -34,7 +39,11 @@ Free-threaded Python builds with ASAN enabled:
 
     ghcr.io/nascheme/cpython-asan:3.14t
 
-Above build with numpy compiled with ASAN as well:
+GIL-enabled Python builds with ASAN enabled:
+
+    ghcr.io/nascheme/cpython-asan:3.14
+
+Above free-threaded build with numpy compiled with ASAN as well:
 
     ghcr.io/nascheme/numpy-asan:3.14t
 
@@ -42,9 +51,10 @@ Above build with numpy compiled with ASAN as well:
 Image tags
 ----------
 
-Each image is tagged with the full Python version (e.g. `3.14.3t`) and a
-short minor-version alias (e.g. `3.14t`).  The minor-version tag always
-points to the latest patch release.
+Each image is tagged with the full Python version and a short minor-version
+alias.  Free-threaded builds use "t" suffixed tags (e.g. `3.14.3t` / `3.14t`).
+GIL-enabled builds use plain version tags (e.g. `3.14.3` / `3.14`).  The
+minor-version tag always points to the latest patch release.
 
 The `3.15t-dev` images are re-built twice a week from CPython's development
 branch.  The `3.13t` and `3.14t` images are rebuilt automatically when a new

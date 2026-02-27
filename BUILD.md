@@ -12,9 +12,10 @@ Images are built in a dependency chain:
     cpython-tsan -> numpy-tsan -> scipy-tsan
     cpython-asan -> numpy-asan
 
-Each image is tagged by Python version (e.g. `3.14.3t`) with a minor-version
-alias (e.g. `3.14t`).  Tag computation is handled by
-`.github/scripts/compute_tags.sh`.
+Each image is tagged by Python version with a minor-version alias.
+Free-threaded builds use "t" suffixed tags (e.g. `3.14.3t` / `3.14t`).
+GIL-enabled cpython builds use plain version tags (e.g. `3.14.3` / `3.14`).
+Tag computation is handled by `.github/scripts/compute_tags.sh`.
 
 Dockerfiles
 -----------
@@ -58,11 +59,14 @@ triggered manually.  It:
 1. Queries python.org for the latest stable release of each tracked Python
    minor version (3.13, 3.14, 3.15).
 2. Resolves the latest numpy and scipy release tags from GitHub.
-3. Checks GHCR for existing images at the discovered Python version tag.
+3. Checks GHCR for existing free-threaded images (e.g. `3.14.3t`) and
+   GIL-enabled cpython images (e.g. `3.14.3`).
 4. Dispatches build workflows for any missing images, passing the resolved
    library versions (`numpy_version`, `scipy_version`) in the dispatch inputs.
 5. Respects the dependency chain -- waits for base images to appear in GHCR
    before dispatching dependent builds.
+6. Dispatches GIL-enabled cpython-tsan and cpython-asan builds using the
+   plain version (without "t" suffix) when those images are missing.
 
 Helper scripts
 --------------
@@ -74,6 +78,7 @@ Helper scripts
   var for authentication when available.
 - `.github/scripts/compute_tags.sh` -- Computes Docker image tags.  For an
   exact version like `3.14.3t`, outputs both `3.14.3t` and `3.14t` tags.
+  Similarly, `3.14.3` produces `3.14.3` and `3.14` tags.
 
 Secrets
 -------

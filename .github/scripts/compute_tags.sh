@@ -9,6 +9,9 @@ pv="$2"
 if [[ "$pv" =~ ^3\.[0-9]+\.[0-9]+t$ ]]; then
   major=$(echo "$pv" | sed -E 's/^([0-9]+\.[0-9]+)\.[0-9]+t$/\1t/')
   printf 'TAGS<<EOF\n%s:%s\n%s:%s\nEOF\n' "$image" "$pv" "$image" "$major"
+elif [[ "$pv" =~ ^3\.[0-9]+\.[0-9]+$ ]]; then
+  major=$(echo "$pv" | sed -E 's/^([0-9]+\.[0-9]+)\.[0-9]+$/\1/')
+  printf 'TAGS<<EOF\n%s:%s\n%s:%s\nEOF\n' "$image" "$pv" "$image" "$major"
 else
   printf 'TAGS<<EOF\n%s:%s\nEOF\n' "$image" "$pv"
 fi

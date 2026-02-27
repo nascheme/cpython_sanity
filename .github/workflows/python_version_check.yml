@@ -52,6 +52,7 @@ jobs:
           echo "found=true" >> $GITHUB_OUTPUT
           echo "tag=$latest" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "gil_version=$latest" >> $GITHUB_OUTPUT
         fi
 
     - name: Exit if no ${{ matrix.python_minor }} release found
@@ -84,10 +85,9 @@ jobs:
       id: check_images
       env:
         VERSION: ${{ steps.get_release.outputs.version }}
+        GIL_VERSION: ${{ steps.get_release.outputs.gil_version }}
       run: |
         set -euo pipefail
-        images=(cpython-tsan cpython-asan numpy-tsan numpy-asan scipy-tsan)
-        missing=()
 
         inspect_image() {
           local ref="$1"
@@ -102,7 +102,11 @@ jobs:
           return 1
         }
 
-        for img in "${images[@]}"; do
+        # Free-threaded images (tagged with VERSION, e.g. 3.14.3t)
+        ft_images=(cpython-tsan cpython-asan numpy-tsan numpy-asan scipy-tsan)
+        missing=()
+
+        for img in "${ft_images[@]}"; do
           ref="ghcr.io/nascheme/${img}:${VERSION}"
           if inspect_image "$ref"; then
             echo "Image $img:$VERSION exists"
@@ -117,13 +121,41 @@ jobs:
           fi
         done
 
+        # GIL-enabled cpython images (tagged with GIL_VERSION, e.g. 3.14.3)
+        gil_images=(cpython-tsan cpython-asan)
+        gil_missing=()
+
+        for img in "${gil_images[@]}"; do
+          ref="ghcr.io/nascheme/${img}:${GIL_VERSION}"
+          if inspect_image "$ref"; then
+            echo "Image $img:$GIL_VERSION (GIL) exists"
+          else
+            rc=$?
+            if [ "$rc" -eq 2 ]; then
+              echo "Authorization failure while checking $img:$GIL_VERSION. Check CI_TOKEN package permissions."
+              exit 1
+            fi
+            echo "Image $img:$GIL_VERSION (GIL) not found"
+            gil_missing+=("$img")
+          fi
+        done
+
         if [ ${#missing[@]} -eq 0 ]; then
           echo "ALL_EXIST=1" >> $GITHUB_OUTPUT
-          echo "No images missing for $VERSION"
+          echo "No free-threaded images missing for $VERSION"
         else
           echo "ALL_EXIST=0" >> $GITHUB_OUTPUT
           printf "MISSING=%s\n" "${missing[*]}" >> $GITHUB_OUTPUT
-          echo "Missing images: ${missing[*]}"
+          echo "Missing free-threaded images: ${missing[*]}"
+        fi
+
+        if [ ${#gil_missing[@]} -eq 0 ]; then
+          echo "GIL_ALL_EXIST=1" >> $GITHUB_OUTPUT
+          echo "No GIL-enabled images missing for $GIL_VERSION"
+        else
+          echo "GIL_ALL_EXIST=0" >> $GITHUB_OUTPUT
+          printf "GIL_MISSING=%s\n" "${gil_missing[*]}" >> $GITHUB_OUTPUT
+          echo "Missing GIL-enabled images: ${gil_missing[*]}"
         fi
 
 
@@ -257,6 +289,76 @@ jobs:
         echo "FAILED=${failed[*]}" >> $GITHUB_OUTPUT
         if [ ${#failed[@]} -ne 0 ]; then
           echo "Some dispatches failed: ${failed[*]}"
+          exit 1
+        fi
+
+    - id: dispatch_gil_builds
+      name: Dispatch GIL-enabled builds for missing images
+      if: steps.check_images.outputs.GIL_ALL_EXIST == '0'
+      env:
+        REPO_OWNER: ${{ github.repository_owner }}
+        REPO_FULL: ${{ github.repository }}
+        GIL_VERSION: ${{ steps.get_release.outputs.gil_version }}
+        DISPATCH_TOKEN: ${{ secrets.DISPATCH_TOKEN }}
+      run: |
+        set -euo pipefail
+
+        REPO_NAME=${REPO_FULL#*/}
+        TARGET_REF="${GITHUB_REF_NAME:-main}"
+
+        GIL_MISSING_RAW='${{ steps.check_images.outputs.GIL_MISSING }}'
+        IFS=' ' read -r -a gil_missing <<< "$GIL_MISSING_RAW"
+
+        declare -A wfmap
+        wfmap["cpython-tsan"]=docker_image_cpython.yml
+        wfmap["cpython-asan"]=docker_image_cpython_asan.yml
+
+        if [ -z "${DISPATCH_TOKEN:-}" ]; then
+          echo "DISPATCH_TOKEN is required but not configured."
+          exit 1
+        fi
+        echo "Dispatch target ref: ${TARGET_REF}"
+
+        dispatched=()
+        failed=()
+
+        for img in "${gil_missing[@]}"; do
+          wf=${wfmap[$img]:-}
+          if [ -z "$wf" ]; then
+            echo "No workflow mapping for GIL image $img; skipping"
+            continue
+          fi
+
+          echo "Dispatching $wf for python_version=$GIL_VERSION (GIL-enabled image $img)"
+          url="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/actions/workflows/${wf}/dispatches"
+
+          body=$(jq -n --arg ref "${TARGET_REF}" --arg ver "${GIL_VERSION}" \
+            '{ref: $ref, inputs: { python_version: $ver }}')
+
+          resp=$(mktemp)
+          http_status=$(curl -sS -o "$resp" -w "%{http_code}" -X POST \
+            -H "Authorization: Bearer ${DISPATCH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            -H "Content-Type: application/json" \
+            -d "$body" "$url" || true)
+
+          msg=$(jq -r '.message // empty' "$resp" 2>/dev/null || true)
+          [ -n "$msg" ] && echo "Dispatch returned HTTP $http_status: $msg" || echo "Dispatch returned HTTP $http_status"
+          rm -f "$resp"
+
+          if [ "$http_status" -lt 400 ]; then
+            dispatched+=("$wf")
+          else
+            echo "Failed to dispatch $wf for GIL-enabled build"
+            failed+=("$wf:$http_status")
+          fi
+        done
+
+        echo "GIL_DISPATCHED=${dispatched[*]}" >> $GITHUB_OUTPUT
+        echo "GIL_FAILED=${failed[*]}" >> $GITHUB_OUTPUT
+        if [ ${#failed[@]} -ne 0 ]; then
+          echo "Some GIL-enabled dispatches failed: ${failed[*]}"
           exit 1
         fi
 
