@@ -1,0 +1,222 @@
+name: Weekly CPython 3.14 release check and dispatch
+
+on:
+  schedule:
+    # Weekly on Monday at 06:00 UTC
+    - cron: '0 6 * * MON'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  check-and-dispatch:
+    runs-on: ubuntu-latest
+    env:
+      # SMTP/email settings (set these secrets if you want email notifications)
+      SMTP_HOST: ${{ secrets.SMTP_HOST }}
+      SMTP_PORT: ${{ secrets.SMTP_PORT }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASS: ${{ secrets.SMTP_PASS }}
+      EMAIL_TO: ${{ secrets.EMAIL_TO }}
+      EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Determine latest 3.14 stable release
+      id: get_release
+      run: |
+        set -euo pipefail
+        echo "Fetching releases from python.org..."
+        latest=$(python3 .github/scripts/get_latest_python.py 3.14 || true)
+        if [ -z "$latest" ]; then
+          echo "found=false" >> $GITHUB_OUTPUT
+        else
+          VERSION="${latest}t"
+          echo "found=true" >> $GITHUB_OUTPUT
+          echo "tag=$latest" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Exit if no 3.14 release found
+      if: steps.get_release.outputs.found != 'true'
+      run: |
+        echo "No stable 3.14.x release found. Nothing to do.";
+
+    - name: Login to GHCR for image checks
+      if: steps.get_release.outputs.found == 'true'
+      uses: docker/login-action@v3
+      with:
+       registry: ghcr.io
+       username: ${{ secrets.GHCR_USERNAME || github.repository_owner }}
+       password: ${{ secrets.CI_TOKEN }}
+
+    - name: Check GHCR for existing images
+      if: steps.get_release.outputs.found == 'true'
+      id: check_images
+      env:
+        VERSION: ${{ steps.get_release.outputs.version }}
+      run: |
+        set -euo pipefail
+        images=(cpython-tsan cpython-asan numpy-tsan numpy-asan scipy-tsan)
+        missing=()
+
+        inspect_image() {
+          local ref="$1"
+          local out
+          if docker manifest inspect "$ref" >/dev/null 2>&1; then
+            return 0
+          fi
+          out=$(docker manifest inspect "$ref" 2>&1 || true)
+          if echo "$out" | grep -qiE 'unauthorized|authentication required|denied'; then
+            return 2
+          fi
+          return 1
+        }
+
+        for img in "${images[@]}"; do
+          ref="ghcr.io/nascheme/${img}:${VERSION}"
+          if inspect_image "$ref"; then
+            echo "Image $img:$VERSION exists"
+          else
+            rc=$?
+            if [ "$rc" -eq 2 ]; then
+              echo "Authorization failure while checking $img:$VERSION. Check CI_TOKEN package permissions."
+              exit 1
+            fi
+            echo "Image $img:$VERSION not found"
+            missing+=("$img")
+          fi
+        done
+
+        if [ ${#missing[@]} -eq 0 ]; then
+          echo "ALL_EXIST=1" >> $GITHUB_OUTPUT
+          echo "No images missing for $VERSION"
+        else
+          echo "ALL_EXIST=0" >> $GITHUB_OUTPUT
+          printf "MISSING=%s\n" "${missing[*]}" >> $GITHUB_OUTPUT
+          echo "Missing images: ${missing[*]}"
+        fi
+
+
+    - id: dispatch_builds
+      name: Dispatch builds for missing images (in order)
+      if: steps.check_images.outputs.ALL_EXIST == '0'
+      env:
+        REPO_OWNER: ${{ github.repository_owner }}
+        REPO_FULL: ${{ github.repository }}
+        VERSION: ${{ steps.get_release.outputs.version }}
+        DISPATCH_TOKEN: ${{ secrets.DISPATCH_TOKEN }}
+      run: |
+        set -euo pipefail
+
+        # derive repo name from full owner/repo
+        REPO_NAME=${REPO_FULL#*/}
+        TARGET_REF="${GITHUB_REF_NAME:-main}"
+
+        # read missing images list
+        MISSING_RAW='${{ steps.check_images.outputs.MISSING }}'
+        IFS=' ' read -r -a missing <<< "$MISSING_RAW"
+
+        # mapping from image name to workflow file
+        declare -A wfmap
+        wfmap["cpython-tsan"]=docker_image_cpython.yml
+        wfmap["cpython-asan"]=docker_image_cpython_asan.yml
+        wfmap["numpy-tsan"]=docker_image_numpy.yml
+        wfmap["numpy-asan"]=docker_image_numpy_asan.yml
+        wfmap["scipy-tsan"]=docker_image_scipy.yml
+
+        # dependency chain (only dispatch dependent images after base image tag exists)
+        declare -A depmap
+        depmap["numpy-tsan"]="cpython-tsan"
+        depmap["numpy-asan"]="cpython-asan"
+        depmap["scipy-tsan"]="numpy-tsan"
+
+        wait_for_image() {
+          local img="$1"
+          local tag="$2"
+          local timeout_sec="${3:-5400}"   # default 90 min
+          local interval="${4:-30}"
+          local waited=0
+          local ref="ghcr.io/nascheme/${img}:${tag}"
+          local out
+          while true; do
+            if docker manifest inspect "$ref" >/dev/null 2>&1; then
+              echo "Dependency ready: ${img}:${tag}"
+              return 0
+            fi
+
+            out=$(docker manifest inspect "$ref" 2>&1 || true)
+            if echo "$out" | grep -qiE 'unauthorized|authentication required|denied'; then
+              echo "Authorization failure while waiting for ${img}:${tag}. Check CI_TOKEN package permissions."
+              return 2
+            fi
+
+            if [ "$waited" -ge "$timeout_sec" ]; then
+              echo "Timed out waiting for dependency ${img}:${tag}"
+              return 1
+            fi
+            echo "Waiting for dependency ${img}:${tag} (${waited}s elapsed)"
+            sleep "$interval"
+            waited=$((waited + interval))
+          done
+        }
+
+        if [ -z "${DISPATCH_TOKEN:-}" ]; then
+          echo "DISPATCH_TOKEN is required but not configured."
+          exit 1
+        fi
+        echo "Dispatch target ref: ${TARGET_REF}"
+
+        dispatched=()
+        failed=()
+
+        for img in "${missing[@]}"; do
+          wf=${wfmap[$img]}
+          if [ -z "$wf" ]; then
+            echo "No workflow mapping for image $img; skipping"
+            continue
+          fi
+
+          dep=${depmap[$img]:-}
+          if [ -n "$dep" ]; then
+            echo "Image $img depends on $dep:$VERSION"
+            wait_for_image "$dep" "$VERSION"
+          fi
+
+          echo "Dispatching $wf for python_version=$VERSION (image $img)"
+          url="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/actions/workflows/${wf}/dispatches"
+          body=$(jq -n --arg ref "${TARGET_REF}" --arg ver "${VERSION}" '{ref: $ref, inputs: { python_version: $ver }}')
+
+          resp=$(mktemp)
+          http_status=$(curl -sS -o "$resp" -w "%{http_code}" -X POST \
+            -H "Authorization: Bearer ${DISPATCH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            -H "Content-Type: application/json" \
+            -d "$body" "$url" || true)
+
+          msg=$(jq -r '.message // empty' "$resp" 2>/dev/null || true)
+          [ -n "$msg" ] && echo "Dispatch returned HTTP $http_status: $msg" || echo "Dispatch returned HTTP $http_status"
+          rm -f "$resp"
+
+          if [ "$http_status" -lt 400 ]; then
+            dispatched+=("$wf")
+          else
+            echo "Failed to dispatch $wf"
+            failed+=("$wf:$http_status")
+          fi
+        done
+
+        echo "DISPATCHED=${dispatched[*]}" >> $GITHUB_OUTPUT
+        echo "FAILED=${failed[*]}" >> $GITHUB_OUTPUT
+        if [ ${#failed[@]} -ne 0 ]; then
+          echo "Some dispatches failed: ${failed[*]}"
+          exit 1
+        fi
+
+    - name: Done
+      run: echo "Weekly check complete"

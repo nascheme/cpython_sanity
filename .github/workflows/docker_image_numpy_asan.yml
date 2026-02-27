@@ -5,13 +5,9 @@ on:
   workflow_dispatch:
     inputs:
       python_version:
-        description: Version of Python to build
+        description: Version of Python to build (e.g. '3.14.3t' or '3.14t' or '3.15t-dev')
         default: '3.15t-dev'
-        type: choice
-        options:
-        - '3.13t'
-        - '3.14t'
-        - '3.15t-dev'
+        type: string
   schedule:
     # 03:22 on Sundays and Wednesdays
     - cron: "22 3 * * SUN,WED"
@@ -39,6 +35,10 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
+    - name: Compute tags
+      run: |
+        bash .github/scripts/compute_tags.sh ghcr.io/nascheme/numpy-asan "${{ env.python_version }}" >> $GITHUB_ENV
+
     - name: Build and push image -- ${{ env.python_version }}
       uses: docker/build-push-action@v5
       with:
@@ -48,5 +48,4 @@ jobs:
         base_image=ghcr.io/nascheme/cpython-asan:${{ env.python_version }}
         setup_args=-Db_sanitize=address
        file: ./Dockerfile.numpy
-       tags: |
-        ghcr.io/nascheme/numpy-asan:${{ env.python_version }}
+       tags: ${{ env.TAGS }}
