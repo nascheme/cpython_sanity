@@ -1,11 +1,39 @@
 ARG base_image=numpy-tsan
 # Default is a known-good tag for local builds. CI overrides this.
-ARG scipy_version=v1.15.2
+ARG scipy_version=v1.17.1
+
+##############################################################################
+# Shared deps layer (cached across Python version builds)
+##############################################################################
+FROM $base_image AS deps
+
+# preserve cached files
+RUN rm -f /etc/apt/apt.conf.d/docker-clean
+
+# Disable interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Additional packages needed for scipy
+ENV scipy_pkgs=" \
+gfortran \
+liblapack-dev \
+libopenblas-dev \
+pkgconf \
+"
+
+RUN \
+    --mount=type=cache,target=/var/cache/apt \
+    apt-get install -y $scipy_pkgs
+
+ENV CC=clang-20
+ENV CXX=clang++-20
+ENV FC=gfortran
+
 
 ##############################################################################
 # Temporary build image
 ##############################################################################
-FROM $base_image AS build
+FROM deps AS build
 
 ARG scipy_version
 
@@ -22,24 +50,7 @@ RUN git submodule update --init
 # This warning is just noise, disable.
 ENV PIP_ROOT_USER_ACTION=ignore
 
-# Disable interactive prompts
-ENV DEBIAN_FRONTEND=noninteractive
-
 ENV TSAN_OPTIONS="report_bugs=0 exitcode=0"
-
-# Debian packages needed to compile things.
-ENV pkgs=" \
-gfortran \
-libopenblas-dev \
-liblapack-dev \
-pkgconf \
-"
-
-ENV FC=gfortran
-
-RUN \
-    --mount=type=cache,target=/var/cache/apt \
-    apt update && apt-get install -y $pkgs
 
 # Build deps for scipy
 RUN \
@@ -67,16 +78,16 @@ RUN \
 
 # clean unwanted files from image
 ADD clean-image.sh /
-RUN sh /clean-image.sh && rm /clean-image.sh
+RUN sh /clean-image.sh && rm /clean-image.sh && rm -rf $WORK/scipy $WORK/numpy
 
 ##############################################################################
 # Final image
 ##############################################################################
-FROM ubuntu:25.04
+FROM deps
 
 ENV WORK=/work
 
-COPY --from=build / /
+COPY --from=build /work /work
 
 ENV CC=clang-20
 ENV CXX=clang++-20

@@ -1,13 +1,7 @@
 ##############################################################################
-# Temporary build image
+# Shared deps layer (cached across Python version builds)
 ##############################################################################
-FROM ubuntu:25.04 AS build
-
-ENV WORK=/work
-WORKDIR $WORK
-
-ARG python_version=3.14t
-ARG config_opts="--with-thread-sanitizer"
+FROM ubuntu:25.04 AS deps
 
 # preserve cached files
 RUN rm -f /etc/apt/apt.conf.d/docker-clean
@@ -17,6 +11,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Debian packages needed to compile things.
 ENV pkgs=" \
+build-essential \
 ca-certificates \
 clang-20 \
 curl \
@@ -29,21 +24,35 @@ libreadline-dev \
 libsqlite3-dev \
 libssl-dev \
 libzstd-dev \
-make \
+libzstd-dev \
+pkg-config \
 pybind11-dev \
 uuid-dev \
 zlib1g-dev \
 "
 
-#RUN \
-#    --mount=type=cache,target=/var/cache/apt \
-#    apt update && apt-get install -y --no-install-recommends $pkgs
 RUN \
     --mount=type=cache,target=/var/cache/apt \
     apt update && apt-get install -y $pkgs
 
 ENV CC=clang-20
 ENV CXX=clang++-20
+
+# Create symlinks for "cc" and "c++"
+RUN \
+    update-alternatives --install /usr/bin/cc cc /usr/bin/$CC 100 && \
+    update-alternatives --install /usr/bin/c++ c++ /usr/bin/$CXX 100
+
+##############################################################################
+# Temporary build image
+##############################################################################
+FROM deps AS build
+
+ENV WORK=/work
+WORKDIR $WORK
+
+ARG python_version=3.14t
+ARG config_opts="--with-thread-sanitizer"
 
 ENV PYENV_ROOT="$WORK/.pyenv"
 ENV PYENV_BIN="$PYENV_ROOT/bin"
@@ -62,7 +71,7 @@ RUN mkdir "$PYENV_CACHE"
 # free-threaded Python is much more likely to trigger races
 RUN \
     --mount=type=cache,target=/work/.pyenv/cache \
-    sh -c "CONFIGURE_OPTS=\"${config_opts}\" pyenv install --verbose --keep ${python_version}"
+    CONFIGURE_OPTS="${config_opts}" pyenv install --verbose --keep ${python_version}
 RUN pyenv global $python_version
 
 # Save a copy of the TSAN suppression list
@@ -81,30 +90,22 @@ RUN --mount=type=cache,target=/root/.cache \
     pip install cython
 
 # clean unwanted files from image
-RUN rm -rf $WORK/.pyenv/sources
+RUN rm -rf $WORK/.pyenv/sources $WORK/.pyenv/.git
 ADD clean-image.sh /
 RUN sh /clean-image.sh && rm /clean-image.sh
 
 ##############################################################################
 # Final image
 ##############################################################################
-FROM ubuntu:25.04
+FROM deps
 
 ENV WORK=/work
 WORKDIR /work
 
-COPY --from=build / /
+COPY --from=build /work /work
 
 # Example script to generate a TSAN suppression list file
 ADD --chmod=755 get_tsan_suppressions.py ./
-
-ENV CC=clang-20
-ENV CXX=clang++-20
-
-# Create symlinks for "cc" and "c++"
-RUN \
-    update-alternatives --install /usr/bin/cc cc /usr/bin/$CC 100 && \
-    update-alternatives --install /usr/bin/c++ c++ /usr/bin/$CXX 100
 
 ENV PYENV_ROOT="$WORK/.pyenv"
 ENV PYENV_BIN="$PYENV_ROOT/bin"

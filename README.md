@@ -1,5 +1,7 @@
 Build container images for CPython, numpy, etc with sanitizer options enabled.
 
+See BUILD.md for developer documentation.
+
 Available container images
 --------------------------
 

@@ -1,6 +1,6 @@
 ARG base_image=cpython-tsan
 # Default is a known-good tag for local builds. CI overrides this.
-ARG numpy_version=v2.2.3
+ARG numpy_version=v2.4.2
 
 ##############################################################################
 # Temporary build image
@@ -41,16 +41,16 @@ RUN cp tools/ci/tsan_suppressions.txt ../tsan_suppressions/numpy.txt
 
 # clean unwanted files from image
 ADD clean-image.sh /
-RUN sh /clean-image.sh && rm /clean-image.sh
+RUN sh /clean-image.sh && rm /clean-image.sh && rm -rf $WORK/numpy
 
 ##############################################################################
 # Final image
 ##############################################################################
-FROM ubuntu:25.04
+FROM $base_image
 
 ENV WORK=/work
 
-COPY --from=build / /
+COPY --from=build /work /work
 
 ENV CC=clang-20
 ENV CXX=clang++-20
