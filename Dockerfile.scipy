@@ -1,12 +1,17 @@
 ARG base_image=numpy-tsan
+# Default is a known-good tag for local builds. CI overrides this.
+ARG scipy_version=v1.15.2
 
 ##############################################################################
 # Temporary build image
 ##############################################################################
 FROM $base_image AS build
 
-# Checkout scipy source code
-RUN git clone --single-branch --depth=1 --no-tags --shallow-submodules \
+ARG scipy_version
+
+# Checkout scipy source code at specific release
+RUN git clone --branch $scipy_version --single-branch --depth=1 \
+    --no-tags --shallow-submodules \
     https://github.com/scipy/scipy $WORK/scipy
 
 WORKDIR $WORK/scipy

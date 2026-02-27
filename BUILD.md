@@ -1,132 +1,129 @@
 BUILD.md
+========
 
-Purpose
+Developer documentation for the CI build system.  For image usage, see
+README.md.
+
+Image hierarchy
+---------------
+
+Images are built in a dependency chain:
+
+    cpython-tsan -> numpy-tsan -> scipy-tsan
+    cpython-asan -> numpy-asan
+
+Each image is tagged by Python version (e.g. `3.14.3t`) with a minor-version
+alias (e.g. `3.14t`).  Tag computation is handled by
+`.github/scripts/compute_tags.sh`.
+
+Dockerfiles
+-----------
+
+- `Dockerfile.numpy` -- Accepts `base_image` and `numpy_version` build args.
+  `numpy_version` defaults to a known-good release tag (e.g. `v2.2.3`) and
+  is used as the `--branch` for `git clone`.
+
+- `Dockerfile.scipy` -- Same pattern with `scipy_version` (e.g. `v1.15.2`).
+
+The CPython Dockerfiles (`Dockerfile.cpython`, `Dockerfile.cpython_asan`) do
+not have a library version arg -- they build from a pyenv-installed Python.
+
+Workflows
+---------
+
+### Build workflows
+
+Each image has a dedicated build workflow under `.github/workflows/`:
+
+| Workflow | Image | Inputs |
+|----------|-------|--------|
+| `docker_image_cpython.yml` | cpython-tsan | `python_version` |
+| `docker_image_cpython_asan.yml` | cpython-asan | `python_version` |
+| `docker_image_numpy.yml` | numpy-tsan | `python_version`, `numpy_version` |
+| `docker_image_numpy_asan.yml` | numpy-asan | `python_version`, `numpy_version` |
+| `docker_image_scipy.yml` | scipy-tsan | `python_version`, `scipy_version` |
+
+When `numpy_version` or `scipy_version` is left empty (or omitted), the
+workflow resolves the latest stable release from GitHub automatically using
+`.github/scripts/get_latest_github_release.py`.
+
+The `3.15t-dev` images are built on a cron schedule (twice weekly) and always
+pull the latest development code from main branches.
+
+### Coordinator workflow
+
+`python_version_check.yml` runs weekly (Monday 06:00 UTC) and can also be
+triggered manually.  It:
+
+1. Queries python.org for the latest stable release of each tracked Python
+   minor version (3.13, 3.14, 3.15).
+2. Resolves the latest numpy and scipy release tags from GitHub.
+3. Checks GHCR for existing images at the discovered Python version tag.
+4. Dispatches build workflows for any missing images, passing the resolved
+   library versions (`numpy_version`, `scipy_version`) in the dispatch inputs.
+5. Respects the dependency chain -- waits for base images to appear in GHCR
+   before dispatching dependent builds.
+
+Helper scripts
+--------------
+
+- `.github/scripts/get_latest_python.py` -- Queries python.org for the latest
+  release matching a given minor version prefix.  Supports `--pre-release`.
+- `.github/scripts/get_latest_github_release.py` -- Queries the GitHub releases
+  API for the latest release tag of any `owner/repo`.  Uses `GITHUB_TOKEN` env
+  var for authentication when available.
+- `.github/scripts/compute_tags.sh` -- Computes Docker image tags.  For an
+  exact version like `3.14.3t`, outputs both `3.14.3t` and `3.14t` tags.
+
+Secrets
 -------
-This document describes the automated build coordination for the cpython/NumPy/SciPy sanitizer images in this repository.
 
-Overview
---------
-- A weekly coordinator workflow (/.github/workflows/weekly_cpython_3_14_check.yml) checks python.org for the latest stable Python 3.14.x release.
-- If a new stable 3.14.x release is found and one or more images for that exact release tag are missing from GHCR, the coordinator dispatches the corresponding build workflows to create only the missing images.
-- Existing build workflows were adapted so they can accept an exact release tag (e.g. "3.14.3t") and will push both the exact tag and the major tag (e.g. "3.14t") when building an exact release.
+The following secrets must be configured (Settings > Secrets and variables >
+Actions):
 
-Images and Tagging
-------------------
-Images built and their GHCR names:
-- ghcr.io/nascheme/cpython-tsan
-- ghcr.io/nascheme/cpython-asan
-- ghcr.io/nascheme/numpy-tsan
-- ghcr.io/nascheme/numpy-asan
-- ghcr.io/nascheme/scipy-tsan
+- **CI_TOKEN** -- Used to login to ghcr.io and push images.  Must have push
+  and read access to the `nascheme` GHCR namespace.  Also used by the
+  coordinator to check for existing image tags.
 
-Tagging policy when building an exact release (example latest 3.14.3):
-- push ghcr.io/nascheme/<image>:3.14.3t
-- also push ghcr.io/nascheme/<image>:3.14t (so the major tag points to the latest patch)
-- build workflows pass tags to `docker/build-push-action` as a newline-delimited list (required format when pushing multiple tags).
+- **DISPATCH_TOKEN** -- A PAT used by the coordinator to dispatch build
+  workflows via the GitHub REST API.  Minimum permissions: Actions read/write
+  on this repository.
 
-Coordinator behavior
---------------------
-- Runs weekly (cron: Monday 06:00 UTC) and is also manually dispatchable.
-- Uses python.org API to list published releases and picks the latest stable 3.14.x release via a small Python helper script (.github/get_latest_python.py).
-- For each image, checks GHCR manifest endpoint for existence of the tag (ghcr.io/v2/nascheme/<image>/manifests/<tag>) using the CI_TOKEN secret.
-- If an image is missing, the coordinator dispatches only the appropriate build workflow (selective dispatch).
-- Dispatch order attempts to favor base images first (cpython first, then dependent images) but builds are asynchronous.
+- **GHCR_USERNAME** (optional) -- GitHub username that owns `CI_TOKEN`.  Only
+  needed if `CI_TOKEN` belongs to a different user than `github.repository_owner`.
 
-Secrets and tokens
-------------------
-The workflows expect the following secrets to be configured in the repository (Settings → Secrets and variables → Actions → New repository secret):
+### Creating a fine-grained PAT for DISPATCH_TOKEN
 
-- CI_TOKEN (required)
-  - Used by build workflows to login to ghcr.io and push images.
-  - Must have push and read access to ghcr.io for the `nascheme` namespace.
-  - Also used by the coordinator when polling GHCR for image/tag existence.
+1. Go to Settings > Developer settings > Personal access tokens > Fine-grained
+   tokens.
+2. Repository access: select only this repository.
+3. Repository permissions: Actions = Read and write, Contents = Read.
+4. Save the token as the `DISPATCH_TOKEN` repository secret.
 
-- GHCR_USERNAME (optional but recommended)
-  - GitHub username that owns `CI_TOKEN`.
-  - Needed when `CI_TOKEN` belongs to a different user than `github.repository_owner`.
-  - If not set, coordinator defaults to `github.repository_owner`.
+A classic PAT with the `workflow` scope also works.
 
-- DISPATCH_TOKEN (required)
-  - A PAT used by the coordinator to call the GitHub REST API and dispatch workflows.
-  - The coordinator now requires this secret and fails fast if it is missing.
+Local builds
+------------
 
-How to create and add a PAT (GitHub UI)
----------------------------------------
-Use a **fine-grained PAT** if possible. Most 403 errors happen because the token is valid but does not have enough repository permissions.
+Build a numpy image locally with a specific release:
 
-Option A (recommended): Fine-grained PAT
-1. Go to https://github.com/settings/personal-access-tokens/new (or: Settings → Developer settings → Personal access tokens → Fine-grained tokens).
-2. Set an expiration and token name (for example: `cpython_sanity_dispatch`).
-3. Resource owner: choose the owner that contains this repository.
-4. Repository access: **Only select repositories** → choose `nascheme/cpython_sanity`.
-5. Repository permissions (minimum):
-   - **Actions: Read and write** (required for `workflow_dispatch` API)
-   - **Contents: Read** (recommended; harmless and often needed by related API calls)
-   - **Metadata: Read** (usually implicit/default)
-6. Create token and copy it immediately.
-7. Add it to this repository as a secret:
-   - Settings → Secrets and variables → Actions → New repository secret
-   - Name: `DISPATCH_TOKEN`
-   - Value: paste token
+    docker build -f Dockerfile.numpy \
+      --build-arg numpy_version=v2.2.3 \
+      --build-arg base_image=cpython-tsan .
 
-Option B: Classic PAT (alternative)
-1. Go to https://github.com/settings/tokens and create a classic token.
-2. Scopes:
-   - `workflow` (required for dispatching workflows)
-   - `repo` (required for private repos; recommended here)
-3. Save as repository secret `DISPATCH_TOKEN`.
+Build scipy:
 
-Important permission notes
-- The token owner must have **write** access (or higher) to `nascheme/cpython_sanity`.
-- If this repository is in an organization with SSO enforcement, the PAT must be **authorized for SSO**.
-- `DISPATCH_TOKEN` must be valid; an invalid token will cause dispatch calls to fail with HTTP 403.
-- GHCR checks should return HTTP 200 when an image exists. Repeated HTTP 401/403 during checks means GHCR auth is wrong (not cache-related). Verify `CI_TOKEN` scopes and set `GHCR_USERNAME` to the token owner's username.
+    docker build -f Dockerfile.scipy \
+      --build-arg scipy_version=v1.15.2 \
+      --build-arg base_image=numpy-tsan .
 
-Minimal permissions summary
-- Fine-grained PAT: repository = `nascheme/cpython_sanity`; Actions = Read & write; Contents = Read.
-- Classic PAT: `workflow` (+ `repo` for private repos).
+Manual workflow dispatch
+------------------------
 
-Quick verification (optional)
-- Test dispatch locally before storing the token:
-  - `curl -i -X POST https://api.github.com/repos/nascheme/cpython_sanity/actions/workflows/docker_image_cpython.yml/dispatches -H "Authorization: Bearer <TOKEN>" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" -d '{"ref":"main","inputs":{"python_version":"3.14.3t"}}'`
-  - Expected response: **204 No Content**.
-  - **403** means token permission problem.
-  - **422** with "not in the list of allowed values" means the workflow on that `ref` still defines `python_version` as a fixed `choice` list (old config). Update/merge workflow files on that branch to use `type: string`, or dispatch to a branch that already has the updated workflow.
+Any build workflow can be triggered from the Actions UI.  Specify
+`python_version` (e.g. `3.14.3t`) and optionally `numpy_version` or
+`scipy_version`.  Leave the library version empty to auto-resolve the latest
+stable release.
 
-Selective dispatch implementation
----------------------------------
-- The coordinator checks each image's manifest for the exact release tag (e.g., 3.14.3t).
-- It builds a list of missing images and only dispatches the corresponding build workflows for those images.
-- Mapping image -> workflow filename is hardcoded in the coordinator:
-  - cpython-tsan -> docker_image_cpython.yml
-  - cpython-asan -> docker_image_cpython_asan.yml
-  - numpy-tsan -> docker_image_numpy.yml
-  - numpy-asan -> docker_image_numpy_asan.yml
-  - scipy-tsan -> docker_image_scipy.yml
-
-Inter-image dependencies and timing
-----------------------------------
-- The coordinator dispatches in dependency order and waits for required base images to exist in GHCR before dispatching dependent workflows.
-- Dependency chain enforced by the coordinator:
-  - `numpy-tsan` waits for `cpython-tsan:<version>`
-  - `numpy-asan` waits for `cpython-asan:<version>`
-  - `scipy-tsan` waits for `numpy-tsan:<version>`
-- This prevents common race failures where dependent builds start before base images are published.
-
-Manual testing and manual runs
------------------------------
-- You can run the coordinator manually via the Actions UI (choose the "Weekly CPython 3.14 release check and dispatch" workflow and click "Run workflow").
-- You can manually dispatch any of the build workflows from the Actions UI and specify the python_version input (e.g., 3.14.3t or 3.14t or 3.15t-dev).
-
-BUILD.md vs README
-------------------
-- BUILD.md contains implementation and operational details for the CI/coordinator system and secrets.
-- The repository README should remain focused on user-facing information (images, usage, tags). You asked for BUILD.md to hold build-specific documentation; it's included here.
-
-Next steps I can take
----------------------
-- Add an optional wait-for-base-image step in numpy/scipy workflows (with a configurable timeout) if you want to reduce race failures.
-- Add a small artifact/logging step that uploads which images were missing and which were dispatched.
-- Prepare a branch and PR with these changes (you asked to keep changes local, so I haven't pushed anything).
-
-If you want anything changed (e.g., different cron cadence, different tag format, additional versions to monitor), tell me which and I'll update the workflows accordingly.
+The coordinator can also be run manually to re-check all versions and dispatch
+any missing builds.

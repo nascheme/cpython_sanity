@@ -13,21 +13,18 @@ Free-threaded Python builds with TSAN enabled:
     ghcr.io/nascheme/cpython-tsan:3.14t
     ghcr.io/nascheme/cpython-tsan:3.15t-dev
 
-Above builds with "numpy" compiled with TSAN as well:
+Above builds with numpy compiled with TSAN as well:
 
     ghcr.io/nascheme/numpy-tsan:3.13t
     ghcr.io/nascheme/numpy-tsan:3.14t
     ghcr.io/nascheme/numpy-tsan:3.15t-dev
 
-Above builds with "scipy" compiled with TSAN as well:
+Above builds with scipy compiled with TSAN as well:
 
     ghcr.io/nascheme/scipy-tsan:3.13t
     ghcr.io/nascheme/scipy-tsan:3.14t
     ghcr.io/nascheme/scipy-tsan:3.15t-dev
 
-
-The `3.15t-dev` images are re-built twice a week by a cron job. The `3.13t` and
-`3.14t` images are rebuilt manually when Python releases happen.
 
 Builds with
 [AddressSanitizer](https://github.com/google/sanitizers/wiki/addresssanitizer)
@@ -37,9 +34,25 @@ Free-threaded Python builds with ASAN enabled:
 
     ghcr.io/nascheme/cpython-asan:3.14t
 
-Above build with "numpy" compiled with ASAN as well:
+Above build with numpy compiled with ASAN as well:
 
     ghcr.io/nascheme/numpy-asan:3.14t
+
+
+Image tags
+----------
+
+Each image is tagged with the full Python version (e.g. `3.14.3t`) and a
+short minor-version alias (e.g. `3.14t`).  The minor-version tag always
+points to the latest patch release.
+
+The `3.15t-dev` images are re-built twice a week from CPython's development
+branch.  The `3.13t` and `3.14t` images are rebuilt automatically when a new
+stable Python release is detected (checked weekly).
+
+Numpy and scipy are built from the latest stable GitHub release (e.g.
+numpy v2.2.3, scipy v1.15.2).  The library version is resolved automatically
+at build time unless overridden.
 
 
 Hints

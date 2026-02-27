@@ -1,14 +1,18 @@
 ARG base_image=cpython-tsan
+# Default is a known-good tag for local builds. CI overrides this.
+ARG numpy_version=v2.2.3
 
 ##############################################################################
 # Temporary build image
 ##############################################################################
 FROM $base_image AS build
 
+ARG numpy_version
 ARG setup_args="-Db_sanitize=thread"
 
-# Checkout numpy source code
-RUN git clone --single-branch --depth=1 --no-tags --shallow-submodules \
+# Checkout numpy source code at specific release
+RUN git clone --branch $numpy_version --single-branch --depth=1 \
+    --no-tags --shallow-submodules \
     https://github.com/numpy/numpy $WORK/numpy
 
 WORKDIR $WORK/numpy

@@ -1,4 +1,4 @@
-name: Weekly CPython 3.14 release check and dispatch
+name: Python version check and dispatch
 
 on:
   schedule:
@@ -13,8 +13,17 @@ permissions:
 jobs:
   check-and-dispatch:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - python_minor: "3.13"
+            pre_release: false
+          - python_minor: "3.14"
+            pre_release: false
+          - python_minor: "3.15"
+            pre_release: true
     env:
-      # SMTP/email settings (set these secrets if you want email notifications)
       SMTP_HOST: ${{ secrets.SMTP_HOST }}
       SMTP_PORT: ${{ secrets.SMTP_PORT }}
       SMTP_USER: ${{ secrets.SMTP_USER }}
@@ -26,12 +35,16 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Determine latest 3.14 stable release
+    - name: Determine latest ${{ matrix.python_minor }} release
       id: get_release
       run: |
         set -euo pipefail
         echo "Fetching releases from python.org..."
-        latest=$(python3 .github/scripts/get_latest_python.py 3.14 || true)
+        PRE_FLAG=""
+        if [ "${{ matrix.pre_release }}" = "true" ]; then
+          PRE_FLAG="--pre-release"
+        fi
+        latest=$(python3 .github/scripts/get_latest_python.py ${{ matrix.python_minor }} $PRE_FLAG || true)
         if [ -z "$latest" ]; then
           echo "found=false" >> $GITHUB_OUTPUT
         else
@@ -41,10 +54,22 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
         fi
 
-    - name: Exit if no 3.14 release found
+    - name: Exit if no ${{ matrix.python_minor }} release found
       if: steps.get_release.outputs.found != 'true'
       run: |
-        echo "No stable 3.14.x release found. Nothing to do.";
+        echo "No ${{ matrix.python_minor }} release found. Nothing to do.";
+
+    - name: Resolve numpy and scipy versions
+      if: steps.get_release.outputs.found == 'true'
+      id: lib_versions
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        numpy_ver=$(python3 .github/scripts/get_latest_github_release.py numpy/numpy || true)
+        scipy_ver=$(python3 .github/scripts/get_latest_github_release.py scipy/scipy || true)
+        echo "numpy_version=${numpy_ver}" >> $GITHUB_OUTPUT
+        echo "scipy_version=${scipy_ver}" >> $GITHUB_OUTPUT
+        echo "Resolved numpy=${numpy_ver} scipy=${scipy_ver}"
 
     - name: Login to GHCR for image checks
       if: steps.get_release.outputs.found == 'true'
@@ -110,6 +135,8 @@ jobs:
         REPO_FULL: ${{ github.repository }}
         VERSION: ${{ steps.get_release.outputs.version }}
         DISPATCH_TOKEN: ${{ secrets.DISPATCH_TOKEN }}
+        NUMPY_VERSION: ${{ steps.lib_versions.outputs.numpy_version }}
+        SCIPY_VERSION: ${{ steps.lib_versions.outputs.scipy_version }}
       run: |
         set -euo pipefail
 
@@ -189,7 +216,22 @@ jobs:
 
           echo "Dispatching $wf for python_version=$VERSION (image $img)"
           url="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/actions/workflows/${wf}/dispatches"
-          body=$(jq -n --arg ref "${TARGET_REF}" --arg ver "${VERSION}" '{ref: $ref, inputs: { python_version: $ver }}')
+
+          # Build dispatch body with library version inputs where applicable
+          case "$img" in
+            numpy-tsan|numpy-asan)
+              body=$(jq -n --arg ref "${TARGET_REF}" --arg ver "${VERSION}" --arg nv "${NUMPY_VERSION}" \
+                '{ref: $ref, inputs: { python_version: $ver, numpy_version: $nv }}')
+              ;;
+            scipy-tsan)
+              body=$(jq -n --arg ref "${TARGET_REF}" --arg ver "${VERSION}" --arg sv "${SCIPY_VERSION}" \
+                '{ref: $ref, inputs: { python_version: $ver, scipy_version: $sv }}')
+              ;;
+            *)
+              body=$(jq -n --arg ref "${TARGET_REF}" --arg ver "${VERSION}" \
+                '{ref: $ref, inputs: { python_version: $ver }}')
+              ;;
+          esac
 
           resp=$(mktemp)
           http_status=$(curl -sS -o "$resp" -w "%{http_code}" -X POST \
@@ -219,4 +261,4 @@ jobs:
         fi
 
     - name: Done
-      run: echo "Weekly check complete"
+      run: echo "Version check complete for ${{ matrix.python_minor }}"

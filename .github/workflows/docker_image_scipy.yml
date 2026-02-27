@@ -8,6 +8,10 @@ on:
         description: Version of Python to build (e.g. '3.14.3t' or '3.14t' or '3.15t-dev')
         default: '3.15t-dev'
         type: string
+      scipy_version:
+        description: "scipy release tag (e.g. 'v1.15.2'). Leave empty to auto-resolve latest."
+        default: ''
+        type: string
   schedule:
     # 03:52 on Sundays and Wednesdays
     - cron: "52 3 * * SUN,WED"
@@ -35,6 +39,20 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
+    - name: Resolve scipy version
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        ver='${{ github.event.inputs.scipy_version }}'
+        if [ -z "$ver" ]; then
+          ver=$(python3 .github/scripts/get_latest_github_release.py scipy/scipy || true)
+        fi
+        if [ -z "$ver" ]; then
+          echo "ERROR: could not resolve scipy version" >&2
+          exit 1
+        fi
+        echo "scipy_version=$ver" >> $GITHUB_ENV
+
     - name: Compute tags
       run: |
         bash .github/scripts/compute_tags.sh ghcr.io/nascheme/scipy-tsan "${{ env.python_version }}" >> $GITHUB_ENV
@@ -46,5 +64,6 @@ jobs:
        push: true
        build-args: |
         base_image=ghcr.io/nascheme/numpy-tsan:${{ env.python_version }}
+        scipy_version=${{ env.scipy_version }}
        file: ./Dockerfile.scipy
        tags: ${{ env.TAGS }}

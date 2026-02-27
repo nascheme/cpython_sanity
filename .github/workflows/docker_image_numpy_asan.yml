@@ -8,6 +8,10 @@ on:
         description: Version of Python to build (e.g. '3.14.3t' or '3.14t' or '3.15t-dev')
         default: '3.15t-dev'
         type: string
+      numpy_version:
+        description: "numpy release tag (e.g. 'v2.2.3'). Leave empty to auto-resolve latest."
+        default: ''
+        type: string
   schedule:
     # 03:22 on Sundays and Wednesdays
     - cron: "22 3 * * SUN,WED"
@@ -35,6 +39,20 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
+    - name: Resolve numpy version
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        ver='${{ github.event.inputs.numpy_version }}'
+        if [ -z "$ver" ]; then
+          ver=$(python3 .github/scripts/get_latest_github_release.py numpy/numpy || true)
+        fi
+        if [ -z "$ver" ]; then
+          echo "ERROR: could not resolve numpy version" >&2
+          exit 1
+        fi
+        echo "numpy_version=$ver" >> $GITHUB_ENV
+
     - name: Compute tags
       run: |
         bash .github/scripts/compute_tags.sh ghcr.io/nascheme/numpy-asan "${{ env.python_version }}" >> $GITHUB_ENV
@@ -47,5 +65,6 @@ jobs:
        build-args: |
         base_image=ghcr.io/nascheme/cpython-asan:${{ env.python_version }}
         setup_args=-Db_sanitize=address
+        numpy_version=${{ env.numpy_version }}
        file: ./Dockerfile.numpy
        tags: ${{ env.TAGS }}
