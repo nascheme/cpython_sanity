@@ -11,9 +11,18 @@ jobs:
   clean:
     runs-on: ubuntu-latest
     steps:
-      - uses: dataaxiom/ghcr-cleanup-action@v1
+      - name: Delete untagged images
+        uses: dataaxiom/ghcr-cleanup-action@v1
         with:
           packages: cpython-tsan,numpy-tsan,scipy-tsan,cpython-asan,numpy-asan
           expand-packages: true
+          dry-run: false
+          token: ${{ secrets.CI_TOKEN }}
+      - name: Delete images older than 1 year
+        uses: dataaxiom/ghcr-cleanup-action@v1
+        with:
+          packages: cpython-tsan,numpy-tsan,scipy-tsan,cpython-asan,numpy-asan
+          expand-packages: true
+          older-than: 1 year
           dry-run: false
           token: ${{ secrets.CI_TOKEN }}
