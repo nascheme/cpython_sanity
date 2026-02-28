@@ -11,18 +11,15 @@ enabled. This is useful to detect data races in C and C++ code.
 
 Free-threaded Python builds with TSAN enabled:
 
-    ghcr.io/nascheme/cpython-tsan:3.13t
     ghcr.io/nascheme/cpython-tsan:3.14t
     ghcr.io/nascheme/cpython-tsan:3.15t-dev
 
 GIL-enabled Python builds with TSAN enabled:
 
-    ghcr.io/nascheme/cpython-tsan:3.13
     ghcr.io/nascheme/cpython-tsan:3.14
 
 Above free-threaded builds with numpy compiled with TSAN as well:
 
-    ghcr.io/nascheme/numpy-tsan:3.13t
     ghcr.io/nascheme/numpy-tsan:3.14t
     ghcr.io/nascheme/numpy-tsan:3.15t-dev
 
@@ -53,7 +50,7 @@ GIL-enabled builds use plain version tags (e.g. `3.14.3` / `3.14`).  The
 minor-version tag always points to the latest patch release.
 
 The `3.15t-dev` images are re-built twice a week from CPython's development
-branch.  The `3.13t` and `3.14t` images are rebuilt automatically when a new
+branch.  The `3.14t` images are rebuilt automatically when a new
 stable Python release is detected (checked weekly).
 
 Numpy and scipy are built from the latest stable GitHub release (e.g.
