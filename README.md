@@ -2,6 +2,23 @@ Build container images for CPython, numpy, etc with sanitizer options enabled.
 
 See BUILD.md for developer documentation.
 
+Recent changes
+--------------
+
+* GIL-enabled (default build) cpython images are now available, in addition
+  to the existing free-threaded builds.
+* Numpy is now built from the most recent stable release rather than from
+  the development branch.  This should improve reliability for CI users.
+* The cpython and numpy source trees are no longer included in the final
+  images, significantly reducing image size.
+* Removed 3.13 images.  These should no longer be needed now that 3.14 is
+  stable.
+* Scipy images are no longer automatically built or published to GHCR.
+  They can still be built locally using `build-tsan.sh` or by manually
+  triggering the GitHub Actions workflow.  The images were large and did
+  not appear to be widely used.
+* Old images have been cleared out, to free space.
+
 Available container images
 --------------------------
 
