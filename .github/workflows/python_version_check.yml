@@ -67,10 +67,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         numpy_ver=$(python3 .github/scripts/get_latest_github_release.py numpy/numpy || true)
-        scipy_ver=$(python3 .github/scripts/get_latest_github_release.py scipy/scipy || true)
         echo "numpy_version=${numpy_ver}" >> $GITHUB_OUTPUT
-        echo "scipy_version=${scipy_ver}" >> $GITHUB_OUTPUT
-        echo "Resolved numpy=${numpy_ver} scipy=${scipy_ver}"
+        echo "Resolved numpy=${numpy_ver}"
 
     - name: Login to GHCR for image checks
       if: steps.get_release.outputs.found == 'true'
@@ -103,7 +101,7 @@ jobs:
         }
 
         # Free-threaded images (tagged with VERSION, e.g. 3.14.3t)
-        ft_images=(cpython-tsan cpython-asan numpy-tsan numpy-asan scipy-tsan)
+        ft_images=(cpython-tsan cpython-asan numpy-tsan numpy-asan)
         missing=()
 
         for img in "${ft_images[@]}"; do
@@ -168,7 +166,6 @@ jobs:
         VERSION: ${{ steps.get_release.outputs.version }}
         DISPATCH_TOKEN: ${{ secrets.DISPATCH_TOKEN }}
         NUMPY_VERSION: ${{ steps.lib_versions.outputs.numpy_version }}
-        SCIPY_VERSION: ${{ steps.lib_versions.outputs.scipy_version }}
       run: |
         set -euo pipefail
 
@@ -186,13 +183,11 @@ jobs:
         wfmap["cpython-asan"]=docker_image_cpython_asan.yml
         wfmap["numpy-tsan"]=docker_image_numpy.yml
         wfmap["numpy-asan"]=docker_image_numpy_asan.yml
-        wfmap["scipy-tsan"]=docker_image_scipy.yml
 
         # dependency chain (only dispatch dependent images after base image tag exists)
         declare -A depmap
         depmap["numpy-tsan"]="cpython-tsan"
         depmap["numpy-asan"]="cpython-asan"
-        depmap["scipy-tsan"]="numpy-tsan"
 
         wait_for_image() {
           local img="$1"
@@ -254,10 +249,6 @@ jobs:
             numpy-tsan|numpy-asan)
               body=$(jq -n --arg ref "${TARGET_REF}" --arg ver "${VERSION}" --arg nv "${NUMPY_VERSION}" \
                 '{ref: $ref, inputs: { python_version: $ver, numpy_version: $nv }}')
-              ;;
-            scipy-tsan)
-              body=$(jq -n --arg ref "${TARGET_REF}" --arg ver "${VERSION}" --arg sv "${SCIPY_VERSION}" \
-                '{ref: $ref, inputs: { python_version: $ver, scipy_version: $sv }}')
               ;;
             *)
               body=$(jq -n --arg ref "${TARGET_REF}" --arg ver "${VERSION}" \

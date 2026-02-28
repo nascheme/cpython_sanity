@@ -26,12 +26,6 @@ Above free-threaded builds with numpy compiled with TSAN as well:
     ghcr.io/nascheme/numpy-tsan:3.14t
     ghcr.io/nascheme/numpy-tsan:3.15t-dev
 
-Above free-threaded builds with scipy compiled with TSAN as well:
-
-    ghcr.io/nascheme/scipy-tsan:3.13t
-    ghcr.io/nascheme/scipy-tsan:3.14t
-    ghcr.io/nascheme/scipy-tsan:3.15t-dev
-
 
 Builds with
 [AddressSanitizer](https://github.com/google/sanitizers/wiki/addresssanitizer)
@@ -158,6 +152,9 @@ Example of running unit tests under ASAN:
 
 Running scipy tests
 -------------------
+
+Scipy images are not automatically built but can be built locally using the
+`build-tsan.sh` script or by manually triggering the GitHub Actions workflow.
 
 Example of running a single test with pytest:
 

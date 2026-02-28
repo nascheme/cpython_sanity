@@ -12,10 +12,6 @@ on:
         description: "scipy release tag (e.g. 'v1.15.2'). Leave empty to auto-resolve latest."
         default: ''
         type: string
-  schedule:
-    # 03:52 on Sundays and Wednesdays
-    - cron: "52 3 * * SUN,WED"
-
 env:
   python_version: ${{ github.event.inputs.python_version || '3.15t-dev' }}
 
