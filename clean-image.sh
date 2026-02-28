@@ -16,7 +16,7 @@ clean_dir /var/log
 
 # Static libraries are large (~590 MB) and not needed for dynamic
 # linking/compilation.  Set to false to keep them if needed.
-REMOVE_STATIC_LIBS=true
+REMOVE_STATIC_LIBS=false
 
 if [ "$REMOVE_STATIC_LIBS" = true ]; then
     find /usr/lib -name '*.a' -delete
