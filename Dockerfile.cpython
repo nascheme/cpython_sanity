@@ -1,7 +1,9 @@
 ##############################################################################
-# Shared deps layer (cached across Python version builds)
+# CPython & build-tools base image
 ##############################################################################
-FROM ubuntu:25.04 AS deps
+FROM ubuntu:25.04
+ARG LLVM_VERSION=20
+ARG TARGETPLATFORM
 
 # preserve cached files
 RUN rm -f /etc/apt/apt.conf.d/docker-clean
@@ -10,20 +12,21 @@ RUN rm -f /etc/apt/apt.conf.d/docker-clean
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Debian packages needed to compile things.
-ENV pkgs=" \
+ARG pkgs=" \
 build-essential \
 ca-certificates \
-clang-20 \
+clang-${LLVM_VERSION} \
 curl \
 git \
 libbz2-dev \
+libclang-rt-${LLVM_VERSION}-dev \
 libffi-dev \
 liblzma-dev \
+libmpdec-dev \
 libncurses-dev \
 libreadline-dev \
 libsqlite3-dev \
 libssl-dev \
-libzstd-dev \
 libzstd-dev \
 pkg-config \
 pybind11-dev \
@@ -32,21 +35,16 @@ zlib1g-dev \
 "
 
 RUN \
-    --mount=type=cache,target=/var/cache/apt \
-    apt update && apt-get install -y $pkgs
+    --mount=type=cache,target=/var/cache/apt,sharing=locked --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt update && apt-get install -y --no-install-recommends $pkgs
 
-ENV CC=clang-20
-ENV CXX=clang++-20
+ENV CC=clang-${LLVM_VERSION}
+ENV CXX=clang++-${LLVM_VERSION}
 
 # Create symlinks for "cc" and "c++"
 RUN \
     update-alternatives --install /usr/bin/cc cc /usr/bin/$CC 100 && \
     update-alternatives --install /usr/bin/c++ c++ /usr/bin/$CXX 100
-
-##############################################################################
-# Temporary build image
-##############################################################################
-FROM deps AS build
 
 ENV WORK=/work
 WORKDIR $WORK
@@ -57,57 +55,35 @@ ARG config_opts="--with-thread-sanitizer"
 ENV PYENV_ROOT="$WORK/.pyenv"
 ENV PYENV_BIN="$PYENV_ROOT/bin"
 ENV PYENV_SHIMS="$PYENV_ROOT/shims"
-ENV PYENV_CACHE="$PYENV_ROOT/cache"
+ARG PYENV_CACHE="$PYENV_ROOT/cache"
+ARG PYENV_SOURCES="$PYENV_ROOT/sources"
 ENV PATH="$PATH:$WORK/.pyenv/bin:$WORK/.pyenv/shims"
 
 # Install pyenv
-RUN git clone --single-branch --depth=1 --no-tags \
-    https://github.com/pyenv/pyenv.git "$WORK/.pyenv"
-
-# Enable caching by making folder
-RUN mkdir "$PYENV_CACHE"
+RUN git clone --single-branch --depth=1 --no-tags https://github.com/pyenv/pyenv.git "${PYENV_ROOT}" && \
+    rm -rf "${PYENV_ROOT}/.git"
 
 # Build cpython, with sanitizer options.
 # free-threaded Python is much more likely to trigger races
+# Save a copy of the TSAN suppression list
 RUN \
-    --mount=type=cache,target=/work/.pyenv/cache \
-    CONFIGURE_OPTS="${config_opts}" pyenv install --verbose --keep ${python_version}
+    --mount=type=cache,target=${PYENV_CACHE},id=${TARGETPLATFORM}/${PYENV_CACHE} \
+    --mount=type=cache,target=${PYENV_SOURCES},id=${TARGETPLATFORM}/${PYENV_SOURCES} \
+    CONFIGURE_OPTS="${config_opts}" pyenv install --verbose --keep ${python_version} && \
+    mkdir $WORK/tsan_suppressions && \
+    cp ${PYENV_SOURCES}/*/Python-*/Tools/tsan/suppressions_free_threading.txt $WORK/tsan_suppressions/cpython.txt
+
 RUN pyenv global $python_version
 
-# Save a copy of the TSAN suppression list
-RUN mkdir $WORK/tsan_suppressions
-RUN cp $WORK/.pyenv/sources/*/Python-*/Tools/tsan/suppressions_free_threading.txt $WORK/tsan_suppressions/cpython.txt
-
 # This warning is just noise, disable.
-ENV PIP_ROOT_USER_ACTION=ignore
+ARG PIP_ROOT_USER_ACTION=ignore
 
-ENV TSAN_OPTIONS="report_bugs=0 exitcode=0"
-
-ENV ASAN_OPTIONS="detect_leaks=0 exitcode=0"
+ARG TSAN_OPTIONS="report_bugs=0 exitcode=0"
+ARG ASAN_OPTIONS="detect_leaks=0 exitcode=0"
 
 # Install cython
 RUN --mount=type=cache,target=/root/.cache \
     pip install cython
 
-# clean unwanted files from image
-RUN rm -rf $WORK/.pyenv/sources $WORK/.pyenv/.git
-ADD clean-image.sh /
-RUN sh /clean-image.sh && rm /clean-image.sh
-
-##############################################################################
-# Final image
-##############################################################################
-FROM deps
-
-ENV WORK=/work
-WORKDIR /work
-
-COPY --from=build /work /work
-
 # Example script to generate a TSAN suppression list file
 ADD --chmod=755 get_tsan_suppressions.py ./
-
-ENV PYENV_ROOT="$WORK/.pyenv"
-ENV PYENV_BIN="$PYENV_ROOT/bin"
-ENV PYENV_SHIMS="$PYENV_ROOT/shims"
-ENV PATH="$PATH:$WORK/.pyenv/bin:$WORK/.pyenv/shims"

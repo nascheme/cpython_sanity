@@ -7,14 +7,8 @@ ARG scipy_version=v1.17.1
 ##############################################################################
 FROM $base_image AS deps
 
-# preserve cached files
-RUN rm -f /etc/apt/apt.conf.d/docker-clean
-
-# Disable interactive prompts
-ENV DEBIAN_FRONTEND=noninteractive
-
 # Additional packages needed for scipy
-ENV scipy_pkgs=" \
+ARG scipy_pkgs=" \
 gfortran \
 liblapack-dev \
 libopenblas-dev \
@@ -22,11 +16,9 @@ pkgconf \
 "
 
 RUN \
-    --mount=type=cache,target=/var/cache/apt \
+    --mount=type=cache,target=/var/cache/apt,sharing=locked --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get install -y $scipy_pkgs
 
-ENV CC=clang-20
-ENV CXX=clang++-20
 ENV FC=gfortran
 
 
@@ -48,9 +40,9 @@ WORKDIR $WORK/scipy
 RUN git submodule update --init
 
 # This warning is just noise, disable.
-ENV PIP_ROOT_USER_ACTION=ignore
+ARG PIP_ROOT_USER_ACTION=ignore
 
-ENV TSAN_OPTIONS="report_bugs=0 exitcode=0"
+ARG TSAN_OPTIONS="report_bugs=0 exitcode=0"
 
 # Build deps for scipy
 RUN \
@@ -85,17 +77,4 @@ RUN sh /clean-image.sh && rm /clean-image.sh && rm -rf $WORK/scipy $WORK/numpy
 ##############################################################################
 FROM deps
 
-ENV WORK=/work
-
 COPY --from=build /work /work
-
-ENV CC=clang-20
-ENV CXX=clang++-20
-ENV FC=gfortran
-
-ENV PYENV_ROOT="$WORK/.pyenv"
-ENV PYENV_BIN="$PYENV_ROOT/bin"
-ENV PYENV_SHIMS="$PYENV_ROOT/shims"
-ENV PATH="$PATH:$WORK/.pyenv/bin:$WORK/.pyenv/shims"
-
-WORKDIR $WORK
