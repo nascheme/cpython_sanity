@@ -21,11 +21,10 @@ WORKDIR $WORK/numpy
 RUN git submodule update --init
 
 # This warning is just noise, disable.
-ENV PIP_ROOT_USER_ACTION=ignore
+ARG PIP_ROOT_USER_ACTION=ignore
 
-ENV TSAN_OPTIONS="report_bugs=0 exitcode=0"
-
-ENV ASAN_OPTIONS="detect_leaks=0 exitcode=0"
+ARG TSAN_OPTIONS="report_bugs=0 exitcode=0"
+ARG ASAN_OPTIONS="detect_leaks=0 exitcode=0"
 
 # Install Python requirements
 RUN --mount=type=cache,target=/root/.cache \
@@ -48,16 +47,4 @@ RUN sh /clean-image.sh && rm /clean-image.sh && rm -rf $WORK/numpy
 ##############################################################################
 FROM $base_image
 
-ENV WORK=/work
-
 COPY --from=build /work /work
-
-ENV CC=clang-20
-ENV CXX=clang++-20
-
-ENV PYENV_ROOT="$WORK/.pyenv"
-ENV PYENV_BIN="$PYENV_ROOT/bin"
-ENV PYENV_SHIMS="$PYENV_ROOT/shims"
-ENV PATH="$PATH:$WORK/.pyenv/bin:$WORK/.pyenv/shims"
-
-WORKDIR $WORK
