@@ -71,7 +71,8 @@ RUN \
     --mount=type=cache,target=${PYENV_SOURCES},id=${TARGETPLATFORM}/${PYENV_SOURCES} \
     CONFIGURE_OPTS="${config_opts}" pyenv install --verbose --keep ${python_version} && \
     mkdir $WORK/tsan_suppressions && \
-    cp ${PYENV_SOURCES}/*/Python-*/Tools/tsan/suppressions_free_threading.txt $WORK/tsan_suppressions/cpython.txt
+    cp ${PYENV_SOURCES}/*/Python-*/Tools/tsan/suppressions_free_threading.txt $WORK/tsan_suppressions/cpython.txt && \
+    rm /tmp/python-build*.log
 
 RUN pyenv global $python_version
 
