@@ -18,6 +18,7 @@ ca-certificates \
 clang-${LLVM_VERSION} \
 curl \
 git \
+llvm-${LLVM_VERSION} \
 libbz2-dev \
 libclang-rt-${LLVM_VERSION}-dev \
 libffi-dev \
