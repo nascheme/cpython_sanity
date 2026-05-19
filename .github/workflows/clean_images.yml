@@ -7,19 +7,21 @@ on:
   # Allow manual triggering from the Actions tab
   workflow_dispatch:
 
+permissions: {}
+
 jobs:
   clean:
     runs-on: ubuntu-latest
     steps:
       - name: Delete untagged images
-        uses: dataaxiom/ghcr-cleanup-action@v1
+        uses: dataaxiom/ghcr-cleanup-action@34a2b6c814b9c6bcb92f78cba3e56a7ab9ca7a86 # v1.1.0
         with:
           packages: cpython-tsan,numpy-tsan,scipy-tsan,cpython-asan,numpy-asan
           expand-packages: true
           dry-run: false
           token: ${{ secrets.CI_TOKEN }}
       - name: Delete images older than 1 year
-        uses: dataaxiom/ghcr-cleanup-action@v1
+        uses: dataaxiom/ghcr-cleanup-action@34a2b6c814b9c6bcb92f78cba3e56a7ab9ca7a86 # v1.1.0
         with:
           packages: cpython-tsan,numpy-tsan,scipy-tsan,cpython-asan,numpy-asan
           expand-packages: true
