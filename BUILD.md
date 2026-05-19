@@ -83,29 +83,23 @@ Helper scripts
 Secrets
 -------
 
-The following secrets must be configured (Settings > Secrets and variables >
+The workflows authenticate to ghcr.io and dispatch other workflows using the
+job-scoped `GITHUB_TOKEN` wherever possible.  `GITHUB_TOKEN` is minted per job
+and requires no manual configuration.
+
+One long-lived secret is still required (Settings > Secrets and variables >
 Actions):
 
-- **CI_TOKEN** -- Used to login to ghcr.io and push images.  Must have push
-  and read access to the `nascheme` GHCR namespace.  Also used by the
-  coordinator to check for existing image tags.
+- **CI_TOKEN** -- A PAT used only by `clean_images.yml` to delete old package
+  versions.  `GITHUB_TOKEN` cannot delete user-owned package versions, so a
+  PAT is required for this single workflow.  Minimum scopes (classic PAT):
+  `read:packages` and `delete:packages`.  No `repo`, `workflow`, or
+  `write:packages` scope is needed.
 
-- **DISPATCH_TOKEN** -- A PAT used by the coordinator to dispatch build
-  workflows via the GitHub REST API.  Minimum permissions: Actions read/write
-  on this repository.
-
-- **GHCR_USERNAME** (optional) -- GitHub username that owns `CI_TOKEN`.  Only
-  needed if `CI_TOKEN` belongs to a different user than `github.repository_owner`.
-
-### Creating a fine-grained PAT for DISPATCH_TOKEN
-
-1. Go to Settings > Developer settings > Personal access tokens > Fine-grained
-   tokens.
-2. Repository access: select only this repository.
-3. Repository permissions: Actions = Read and write, Contents = Read.
-4. Save the token as the `DISPATCH_TOKEN` repository secret.
-
-A classic PAT with the `workflow` scope also works.
+For the build workflows to push images using `GITHUB_TOKEN`, each ghcr.io
+package (`cpython-tsan`, `cpython-asan`, `numpy-tsan`, `numpy-asan`,
+`scipy-tsan`) must list this repository under *Package settings > Manage
+Actions access* with the **Write** role.
 
 Local builds
 ------------

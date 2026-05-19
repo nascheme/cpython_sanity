@@ -163,7 +163,7 @@ jobs:
         REPO_OWNER: ${{ github.repository_owner }}
         REPO_FULL: ${{ github.repository }}
         VERSION: ${{ steps.get_release.outputs.version }}
-        DISPATCH_TOKEN: ${{ secrets.DISPATCH_TOKEN }}
+        DISPATCH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         NUMPY_VERSION: ${{ steps.lib_versions.outputs.numpy_version }}
       run: |
         set -euo pipefail
@@ -289,7 +289,7 @@ jobs:
         REPO_OWNER: ${{ github.repository_owner }}
         REPO_FULL: ${{ github.repository }}
         GIL_VERSION: ${{ steps.get_release.outputs.gil_version }}
-        DISPATCH_TOKEN: ${{ secrets.DISPATCH_TOKEN }}
+        DISPATCH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         set -euo pipefail
 
