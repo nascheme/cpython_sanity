@@ -9,6 +9,7 @@ on:
 permissions:
   contents: read
   actions: write
+  packages: read
 
 jobs:
   check-and-dispatch:
@@ -73,8 +74,8 @@ jobs:
       uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
       with:
        registry: ghcr.io
-       username: ${{ secrets.GHCR_USERNAME || github.repository_owner }}
-       password: ${{ secrets.CI_TOKEN }}
+       username: ${{ github.actor }}
+       password: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Check GHCR for existing images
       if: steps.get_release.outputs.found == 'true'
@@ -109,7 +110,7 @@ jobs:
           else
             rc=$?
             if [ "$rc" -eq 2 ]; then
-              echo "Authorization failure while checking $img:$VERSION. Check CI_TOKEN package permissions."
+              echo "Authorization failure while checking $img:$VERSION. Check that the package is linked to this repo with read access."
               exit 1
             fi
             echo "Image $img:$VERSION not found"
@@ -128,7 +129,7 @@ jobs:
           else
             rc=$?
             if [ "$rc" -eq 2 ]; then
-              echo "Authorization failure while checking $img:$GIL_VERSION. Check CI_TOKEN package permissions."
+              echo "Authorization failure while checking $img:$GIL_VERSION. Check that the package is linked to this repo with read access."
               exit 1
             fi
             echo "Image $img:$GIL_VERSION (GIL) not found"
@@ -203,7 +204,7 @@ jobs:
 
             out=$(docker manifest inspect "$ref" 2>&1 || true)
             if echo "$out" | grep -qiE 'unauthorized|authentication required|denied'; then
-              echo "Authorization failure while waiting for ${img}:${tag}. Check CI_TOKEN package permissions."
+              echo "Authorization failure while waiting for ${img}:${tag}. Check that the package is linked to this repo with read access."
               return 2
             fi
 
