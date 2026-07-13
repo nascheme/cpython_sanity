@@ -72,3 +72,5 @@ jobs:
         numpy_version=${{ env.numpy_version }}
        file: ./Dockerfile.numpy
        tags: ${{ env.TAGS }}
+       labels: |
+        org.opencontainers.image.description=CPython and NumPy built with ThreadSanitizer for detecting data races in Python and native extension modules.

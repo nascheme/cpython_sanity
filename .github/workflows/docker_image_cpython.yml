@@ -54,3 +54,5 @@ jobs:
         python_version=${{ env.python_version }}
         config_opts=--with-thread-sanitizer
        tags: ${{ env.TAGS }}
+       labels: |
+        org.opencontainers.image.description=CPython built with ThreadSanitizer for detecting data races in Python and native extension modules.

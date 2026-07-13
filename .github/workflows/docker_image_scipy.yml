@@ -68,3 +68,5 @@ jobs:
         scipy_version=${{ env.scipy_version }}
        file: ./Dockerfile.scipy
        tags: ${{ env.TAGS }}
+       labels: |
+        org.opencontainers.image.description=CPython, NumPy, and SciPy built with ThreadSanitizer for detecting data races in Python and native extension modules.

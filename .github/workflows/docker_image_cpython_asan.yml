@@ -54,3 +54,5 @@ jobs:
         python_version=${{ env.python_version }}
         config_opts=--with-address-sanitizer
        tags: ${{ env.TAGS }}
+       labels: |
+        org.opencontainers.image.description=CPython built with AddressSanitizer for detecting memory errors in Python and native extension modules.
