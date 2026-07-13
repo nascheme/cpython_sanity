@@ -1,8 +1,8 @@
 ##############################################################################
 # CPython & build-tools base image
 ##############################################################################
-FROM ubuntu:25.04
-ARG LLVM_VERSION=20
+FROM ubuntu:26.04
+ARG LLVM_VERSION=21
 ARG TARGETPLATFORM
 
 # preserve cached files

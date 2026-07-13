@@ -5,6 +5,7 @@ See BUILD.md for developer documentation.
 Recent changes
 --------------
 
+* Container images now use Ubuntu 26.04 and LLVM 21 (matching CPython CI).
 * GIL-enabled (default build) cpython images are now available, in addition
   to the existing free-threaded builds.
 * Numpy is now built from the most recent stable release rather than from
